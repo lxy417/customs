@@ -1,0 +1,79 @@
+.app-header {
+  background: #fff;
+  padding: 0 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: fixed;
+  width: 100%;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-toggle-btn {
+  color: #001529;
+  margin-right: 16px;
+  transition: color 0.3s;
+}
+
+.sidebar-toggle-btn:hover {
+  color: #1890ff;
+}
+
+.app-title {
+  margin: 0;
+  color: #001529;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.header-notification {
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.header-notification:hover {
+  color: #1890ff;
+}
+
+.notification-icon {
+  font-size: 18px;
+  color: #001529;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.user-avatar {
+  background-color: #1890ff;
+}
+
+.username {
+  color: #001529;
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .username {
+    display: none;
+  }
+}

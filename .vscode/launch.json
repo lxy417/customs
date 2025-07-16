@@ -1,0 +1,33 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python Debugger: FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "app.main:app",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "jinja": true
+        },
+        {
+            "name": "Python Debugger: Data Import",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "app/utils/data_import.py",
+            "args": [
+                "--file", "C:/Users/hslxy/Documents/WeChat Files/wxid_a968lsxxcg0322/FileStorage/File/2025-07/company_data/中国.xlsx",
+                "--batch-size", "500"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "console": "integratedTerminal"
+        }
+    ]
+}
