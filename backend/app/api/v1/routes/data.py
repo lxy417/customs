@@ -30,7 +30,6 @@ def search_customs_data(
     """查询海关数据，支持多条件过滤、分页和排序"""
     # 构建查询条件
     query_body = {"bool": {"must": [], "filter": []}}
-    
     # 添加用户权限过滤（非管理员只能查看授权的海关编码）
     if not current_user.is_admin and current_user.allowed_customs_codes:
         query_body["bool"]["filter"].append({
@@ -61,10 +60,13 @@ def search_customs_data(
     if exporter:
         query_body["bool"]["must"].append({"term": {"出口商": exporter}})
     
-    # 如果没有must条件，使用match_all
-    if not query_body["bool"]["must"]:
-        query_body = {"match_all": {}}
-    
+        # 更好的处理方式是：如果 must 和 filter 都为空，才使用 match_all。
+    # 否则，就使用构建好的 bool 查询。
+    if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
+        final_query_body = {"match_all": {}}
+    else:
+        final_query_body = query_body
+
     # 构建排序条件
     sort = [{sort_by: {"order": sort_order}}]
     
@@ -75,7 +77,7 @@ def search_customs_data(
         # 执行查询
         response = es_client.search(
             index=index_name,
-            query=query_body,
+            query=final_query_body,
             sort=sort,
             from_=from_index,
             size=page_size,
