@@ -260,7 +260,7 @@ const DataQuery = () => {
         >
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8} lg={6} xl={4}>
-              <Form.Item name="海关编码" label="海关编码">
+              <Form.Item name="customs_code" label="海关编码">
                 <Select
                   showSearch
                   placeholder="选择或输入海关编码"
