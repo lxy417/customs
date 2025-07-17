@@ -4,6 +4,7 @@ import { SearchOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/ic
 import { dataAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import moment from 'moment';
+import * as XLSX from 'xlsx';
 moment.locale('zh-cn');
 
 const { Title } = Typography;
@@ -100,7 +101,21 @@ const DataQuery = () => {
 
       // 调用API导出数据
       const response = await dataAPI.export(exportParams);
-      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const jsonData = response.data; // 假设你的JSON数据在 response.data.data 中
+
+      if (!jsonData || jsonData.length === 0) {
+        throw Error('没有可导出的数据');
+      }
+      // --- 使用 xlsx 库将 JSON 转换为 Excel ---
+      const ws = XLSX.utils.json_to_sheet(jsonData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '海关数据'); // '海关数据' 是工作表的名称
+
+      // 生成 Excel 文件的二进制数据
+      // type: 'array' 会返回一个 Uint8Array，这更适合创建 Blob
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+
+      const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

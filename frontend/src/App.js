@@ -64,10 +64,10 @@ function App() {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Layout className="site-layout">
+    
+      <Layout className="site-layout" style={{ minHeight: '100vh' }}>
         {isAuthenticated && <Header toggleSidebar={toggleSidebar} />}
-        <Content style={{ padding: isLoginPage ? 0 : (isAuthenticated ? '0 48px' : 0), minHeight: 280 }}>
+        <Content className={`content-container ${isAuthenticated && !isLoginPage ? 'content-authenticated' : 'content-unauthenticated'}`}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/data-query" element={<PrivateRoute element={<DataQuery />} />} />
@@ -79,7 +79,7 @@ function App() {
         </Content>
         <Footer style={{ textAlign: 'center' }}>海关数据管理系统 ©{new Date().getFullYear()} Created with React & Ant Design</Footer>
       </Layout>
-    </Layout>
+    
   );
 }
 

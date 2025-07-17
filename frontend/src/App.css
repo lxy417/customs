@@ -8,3 +8,25 @@
   flex: 1;
   padding: 20px;
 }
+
+/* 新增样式，防止内容被页眉隐藏 */
+.content-with-header {
+  padding-top: 64px; /* 调整此值以匹配你的 Header 高度 */
+}
+
+/* Content容器样式 */
+.content-container {
+  min-height: 280px;
+}
+
+.content-authenticated {
+  padding-top: 64px;
+  padding-right: 48px;
+  padding-left: 48px;
+}
+
+.content-unauthenticated {
+  padding-top: 0;
+  padding-right: 0;
+  padding-left: 0;
+}
