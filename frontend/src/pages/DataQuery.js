@@ -22,7 +22,7 @@ const DataQuery = () => {
     current: 1,
     pageSize: 20,
     showSizeChanger: true,
-    showTotal: (total) => `共 ${total} 条记录，共 ${pagination.total_pages} 页`
+    showTotal: (total) => `共 ${total} 条记录，共 ${Math.ceil(total / pagination.pageSize)} 页`
   });
   const [customsCodes, setCustomsCodes] = useState([]);
   const [countries, setCountries] = useState({ import: [], export: [] });
@@ -57,12 +57,13 @@ const DataQuery = () => {
   // 处理查询
   const handleSearch = async (values) => {
     try {
+      // debugger
       setLoading(true);
       // 格式化查询参数
       const params = {
         ...values,
-        page: pagination.current,
-        page_size: pagination.pageSize,
+        page: values.page?values.page:pagination.current,
+        page_size: values.page_size?values.page_size:pagination.pageSize,
         // 日期范围格式化
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
@@ -73,7 +74,8 @@ const DataQuery = () => {
       // 执行查询
       const response = await dataAPI.search(params);
       setDataSource(response.data);
-      setPagination(prev => ({ ...prev, total: response.total, total_pages: response.total_pages }));
+      debugger
+      setPagination(prev => ({ ...prev, total: response.total, total_pages: response.total_pages}));
     } catch (error) {
       console.error('数据查询失败:', error);
       message.error('数据查询失败，请重试');
@@ -136,16 +138,21 @@ const DataQuery = () => {
   };
 
   // 处理分页变化
-  const handleTableChange = (pagination, filters, sorter) => {
-    setPagination(pagination);
+  const handleTableChange = (paginations, filters, sorter) => {
+    debugger
+    console.log(paginations)
+    setPagination(prev => ({...prev, ...paginations}))
+    console.log(pagination)
+    // setPagination(pagination);
     // 获取当前表单值并重新查询
     form.validateFields().then(values => {
+      debugger
       handleSearch({
       ...values,
       sort_by: sorter.field || '日期',
       sort_order: sorter.order === 'ascend' ? 'asc' : 'desc',
-      page: pagination.current,
-      page_size: pagination.pageSize
+      page: paginations.current,
+      page_size: paginations.pageSize
     });
     });
   };
