@@ -81,7 +81,13 @@ export const dataAPI = {
   search: (params) => api.get('/api/v1/data/search', { params }),
   export: (params) => api.get('/api/v1/data/search', { params }),
   getCustomsCodes: () => api.get('/api/v1/data/customs-codes'),
-  getCountries: () => api.get('/api/v1/data/countries')
+  getCountries: () => api.get('/api/v1/data/countries'),
+  // 数据管理相关API
+  create: (data) => api.post('/api/v1/data', data),
+  update: (id, data) => api.put(`/api/v1/data/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/data/${id}`),
+  bulkDelete: (ids) => api.post('/api/v1/data/bulk-delete', { data_ids: ids }),
+  bulkDeleteByCondition: (queryParams) => api.post('/api/v1/data/bulk-delete-by-condition', { query_params: queryParams })
 };
 
 // // 用户管理相关API

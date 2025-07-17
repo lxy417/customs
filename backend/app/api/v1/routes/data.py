@@ -1,16 +1,89 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Body
 from typing import Optional, List, Dict, Any
 from datetime import date
 from app.utils.elasticsearch import ESClient
 from app.config.settings import settings
 from .auth import get_current_user
 from app.services.user_service import UserInDB
+from app.services.data_service import DataService, CustomsDataCreate, CustomsDataUpdate
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 es_client = ESClient.get_client()
 index_name = settings.DATA_INDEX
+data_service = DataService()
+
+@router.post("/", response_model=Dict[str, Any], tags=["数据管理"])
+def create_customs_data(
+    data: CustomsDataCreate = Body(...),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """创建海关数据（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    try:
+        return data_service.create_customs_data(data.dict())
+    except Exception as e:
+        logger.error(f"创建海关数据失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"创建海关数据失败: {str(e)}")
+
+@router.put("/{data_id}", response_model=Dict[str, Any], tags=["数据管理"])
+def update_customs_data(
+    data_id: str,
+    data: CustomsDataUpdate = Body(...),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """更新海关数据（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    try:
+        return data_service.update_customs_data(data_id, data.dict(exclude_unset=True))
+    except Exception as e:
+        logger.error(f"更新海关数据失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"更新海关数据失败: {str(e)}")
+
+@router.delete("/{data_id}", response_model=Dict[str, Any], tags=["数据管理"])
+def delete_customs_data(
+    data_id: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """删除海关数据（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    try:
+        return data_service.delete_customs_data(data_id)
+    except Exception as e:
+        logger.error(f"删除海关数据失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"删除海关数据失败: {str(e)}")
+
+@router.post("/bulk-delete-by-condition", response_model=Dict[str, Any], tags=["数据管理"])
+def bulk_delete_by_condition(
+    query_params: Dict[str, Any] = Body(..., embed=True),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """按条件批量删除海关数据（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    try:
+        return data_service.bulk_delete_by_condition(query_params)
+    except Exception as e:
+        logger.error(f"按条件批量删除海关数据失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"按条件批量删除海关数据失败: {str(e)}")
+
+@router.post("/bulk-delete", response_model=Dict[str, Any], tags=["数据管理"])
+def bulk_delete_customs_data(
+    data_ids: List[str] = Body(..., embed=True),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """批量删除海关数据（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    try:
+        return data_service.bulk_delete_customs_data(data_ids)
+    except Exception as e:
+        logger.error(f"批量删除海关数据失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"批量删除海关数据失败: {str(e)}")
 
 @router.get("/search", response_model=Dict[str, Any], tags=["数据查询"])
 def search_customs_data(
@@ -92,7 +165,13 @@ def search_customs_data(
         total = response["hits"]["total"]["value"]
         hits = response["hits"]["hits"]
         
-        data = [hit["_source"] for hit in hits]
+        data = []
+        for hit in hits:
+            # 获取文档的原始 _source 数据
+            doc_data = hit["_source"]
+            # 将 _id 添加到文档数据中，这是关键的一行！
+            doc_data["id"] = hit["_id"]
+            data.append(doc_data)
         
         return {
             "total": total,
