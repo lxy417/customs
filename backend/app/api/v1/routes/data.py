@@ -85,6 +85,20 @@ def bulk_delete_customs_data(
         logger.error(f"批量删除海关数据失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"批量删除海关数据失败: {str(e)}")
 
+@router.post("/export", response_model=Dict[str , Any], tags=["数据管理"])
+def export_customs_data(
+    query_params: Dict[str, Any] = Body(..., embed=True),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """导出海关数据，最多2000条"""
+    # if not current_user.is_admin:
+    #     raise HTTPException(status_code=403, detail="无权限执行此操作")
+    try:
+        return data_service.export_customs_data(query_params)
+    except Exception as e:
+        logger.error(f"数据导出失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"数据导出失败: {str(e)}")
+
 @router.get("/search", response_model=Dict[str, Any], tags=["数据查询"])
 def search_customs_data(
     current_user: UserInDB = Depends(get_current_user),

@@ -292,3 +292,75 @@ class DataService:
         except Exception as e:
             logger.error(f"批量删除海关数据失败: {str(e)}", exc_info=True)
             raise
+
+    def export_customs_data(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """根据条件导出海关数据，最多2000条"""
+        try:
+            # 构建查询条件
+            query_body = {"bool": {"must": [], "filter": []}}
+
+            # 添加查询条件
+            if query_params.get('customs_code'):
+                query_body["bool"]["must"].append({"term": {"海关编码": query_params['customs_code']}})
+            
+            if query_params.get('import_country'):
+                query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
+            
+            if query_params.get('export_country'):
+                query_body["bool"]["must"].append({"term": {"出口商所在国家": query_params['export_country']}})
+            
+            if query_params.get('start_date') or query_params.get('end_date'):
+                date_range = {}
+                if query_params.get('start_date'):
+                    date_range["gte"] = query_params['start_date']
+                if query_params.get('end_date'):
+                    date_range["lte"] = query_params['end_date']
+                query_body["bool"]["must"].append({"range": {"日期": date_range}})
+            
+            if query_params.get('importer'):
+                query_body["bool"]["must"].append({"term": {"进口商": query_params['importer']}})
+            
+            if query_params.get('exporter'):
+                query_body["bool"]["must"].append({"term": {"出口商": query_params['exporter']}})
+
+            # 如果没有条件，使用match_all
+            if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
+                final_query_body = {"match_all": {}}
+            else:
+                final_query_body = query_body
+
+            # 处理排序
+            sort_by = query_params.get('sort_by', '日期')
+            sort_order = query_params.get('sort_order', 'desc')
+            sort = [{sort_by: {"order": sort_order}}]
+
+            # 执行查询，限制最多2000条
+            response = self.es_client.search(
+                index=self.index_name,
+                query=final_query_body,
+                sort=sort,
+                size=2000,  # 限制最多2000条
+                _source=[
+                    "海关编码", "编码产品描述", "日期", "进口商", "进口商所在国家", 
+                    "出口商", "出口商所在国家", "数量单位", "数量", "公吨", 
+                    "金额美元", "详细产品名称", "提单号", "数据来源", "关单号"
+                ]
+            )
+
+            total = response["hits"]["total"]["value"]
+            hits = response["hits"]["hits"]
+            
+            data = []
+            for hit in hits:
+                doc_data = hit["_source"]
+                doc_data["id"] = hit["_id"]
+                data.append(doc_data)
+            
+            return {
+                "total": total,
+                "exported": len(data),
+                "data": data
+            }
+        except Exception as e:
+            logger.error(f"数据导出失败: {str(e)}", exc_info=True)
+            raise
