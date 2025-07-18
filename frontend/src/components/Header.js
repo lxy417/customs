@@ -44,7 +44,8 @@ const AppHeader = () => {
     if (path.includes('/data-query')) return ['data-query'];
     if (path.includes('/user-management')) return ['user-management'];
     if (path.includes('/import')) return ['import'];
-    return ['data-query'];
+    if (path.includes('/home')) return ['home'];
+    return ['home'];
   };
   return (
     <Header className="app-header">
@@ -56,6 +57,10 @@ const AppHeader = () => {
         style={{ flex: 1, minWidth: 0 }}
         // className="sidebar-menu"
       >
+        <Menu.Item key="home" icon={<PieChartOutlined />} className="sidebar-menu-item">
+          <Link to="/home">首页</Link>
+        </Menu.Item>
+
         <Menu.Item key="data-query" icon={<PieChartOutlined />} className="sidebar-menu-item">
           <Link to="/data-query">数据查询</Link>
         </Menu.Item>

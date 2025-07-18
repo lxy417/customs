@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import DataQuery from './pages/DataQuery';
 import UserManagement from './pages/UserManagement';
 import Import from './pages/Import';
+import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Header from './components/Header';
 import './App.css';
@@ -73,7 +74,8 @@ function App() {
             <Route path="/data-query" element={<PrivateRoute element={<DataQuery />} />} />
             <Route path="/user-management" element={<AdminRoute element={<UserManagement />} />} />
             <Route path="/import" element={<AdminRoute element={<Import />} />} />
-            <Route path="/" element={<Navigate to="/data-query" replace />} />
+            <Route path="/home" element={<PrivateRoute element={<Home />} />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Content>

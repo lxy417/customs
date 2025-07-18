@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Form, Input, Select, DatePicker, Button, Table, Space, Typography, Card, Spin, message, Row, Col, Modal } from 'antd';
 import { SearchOutlined, ReloadOutlined, DownloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -12,16 +13,46 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const DataQuery = () => {
+  const location = useLocation();
   const { user } = useAuth();
-  // const { user } = useContext(AuthContext);
   const [countries, setCountries] = useState({ import: [], export: [] });
   const [form] = Form.useForm();
   const [editModalVisible, setEditModalVisible] = useState(false);
- 
   const [currentRecord, setCurrentRecord] = useState(null);
   const [editForm] = Form.useForm();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // 从首页接收搜索参数并自动填充
+  useEffect(() => {
+      const searchParams = location.state;
+      if (searchParams) {
+        const formattedSearchParams = { ...searchParams };
+        // 检查并转换日期范围
+        if (formattedSearchParams.start_date && formattedSearchParams.end_date) {
+          formattedSearchParams.date_range = [
+            moment(formattedSearchParams.start_date),
+            moment(formattedSearchParams.end_date)
+          ];
+          // 移除原始的 start_date 和 end_date 字段，因为 DatePicker 期望的是 date_range
+          delete formattedSearchParams.start_date;
+          delete formattedSearchParams.end_date;
+        } else if (formattedSearchParams.start_date) {
+          // 如果只有开始日期，也可以考虑单独处理或将其设为日期范围的开始
+          formattedSearchParams.date_range = [moment(formattedSearchParams.start_date), null];
+          delete formattedSearchParams.start_date;
+        } else if (formattedSearchParams.end_date) {
+          // 如果只有结束日期
+          formattedSearchParams.date_range = [null, moment(formattedSearchParams.end_date)];
+          delete formattedSearchParams.end_date;
+        }
+
+        form.setFieldsValue(formattedSearchParams);
+        // 如果有参数则自动触发搜索
+        handleSearch(form.getFieldsValue());
+      }
+  }, [location.state, form]);
+
   
   const [pagination, setPagination] = useState({
     total: 0,
@@ -517,7 +548,7 @@ const DataQuery = () => {
               查询
             </Button>
             {user?.is_admin && (
-              <Button type="primary" style={{ marginLeft: 16 }} onClick={() => { setCurrentRecord(null); editForm.resetFields(); editForm.setFieldsValue({日期: null,});setEditModalVisible(true); }}>新增数据</Button>
+              <Button type="primary" onClick={() => { setCurrentRecord(null); editForm.resetFields(); editForm.setFieldsValue({日期: null,});setEditModalVisible(true); }}>新增数据</Button>
             )}
                 <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle">
                   重置

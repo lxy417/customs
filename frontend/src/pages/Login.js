@@ -15,7 +15,7 @@ const Login = () => {
   const { login, loading } = useAuth();
 
   // 获取登录前的位置，默认为数据查询页
-  const from = location.state?.from?.pathname || '/data-query';
+  const from = location.state?.from?.pathname || '/home';
 
   const handleSubmit = async (values) => {
     const success = await login(values.username, values.password);
