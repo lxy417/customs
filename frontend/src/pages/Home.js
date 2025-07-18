@@ -134,25 +134,13 @@ const Home = () => {
         <Select
             value={searchType}
             onChange={setSearchType}
-            style={{ height: 40 }}
+            style={{ height: 40,width: 120 }}
           >
             <Option value="customs_code">海关编码</Option>
             <Option value="export_country">出口国家</Option>
             <Option value="import_country">进口国家</Option>
             <Option value="ai">AI搜索</Option>
           </Select>
-          {/* <Search
-            // addonBefore={selectBefore}
-            placeholder="请输入搜索内容..."
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onPressEnter={handleSearch}
-            style={{ width: '100%' }}
-            enterButton="搜索"
-            size="large"
-            onSearch={handleSearch}
-            loading={aiLoading}
-          /> */}
           {searchType === 'ai' ?<Input
             // addonBefore={selectBefore}
             placeholder="请输入搜索内容..."
