@@ -5,7 +5,7 @@ import { message } from 'antd';
 // 创建axios实例
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL,
-  timeout: 10000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -82,6 +82,11 @@ export const dataAPI = {
   export: (params) => api.get('/api/v1/data/search', { params }),
   getCustomsCodes: () => api.get('/api/v1/data/customs-codes'),
   getCountries: () => api.get('/api/v1/data/countries'),
+  aiSearch: (searchValue, exportCountries, importCountries) => api.post('/api/v1/ai/search', {
+    search_value: searchValue,
+    export_countries: exportCountries,
+    import_countries: importCountries
+  }),
   // 数据管理相关API
   create: (data) => api.post('/api/v1/data', data),
   update: (id, data) => api.put(`/api/v1/data/${id}`, data),

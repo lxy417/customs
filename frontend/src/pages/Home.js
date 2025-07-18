@@ -45,51 +45,9 @@ const Home = () => {
     try {
       setAiLoading(true);
       // 调用DeepSeek API将自然语言转换为查询条件
-      const response = await fetch(`${process.env.REACT_APP_DEEPSEEK_API_URL}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.REACT_APP_DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            {
-              role: 'system',
-              content: '将用户输入的自然语言转换为海关数据查询条件，仅返回JSON格式，不包含任何解释文本，\
-              字段包括customs_code、export_country、import_country、start_date、end_date。时间用yyyy-mm-dd格式表示。\
-              EXAMPLE INPUT: 查询未锻造锑的数据\
-              EXAMPLE JSON OUTPUT:{}\
-                {\
-                    "customs_code": "811010"\
-                }'
-            },
-            {
-              role: 'user',
-              content: searchValue
-            }
-          ],
-          response_format:{
-              'type': 'json_object'
-          }
-        })
-      });
-
-        if (!response.ok) throw new Error('AI搜索请求失败');
-        const apiResponse = await response.json();
-        // 提取AI返回的内容
-        const aiContent = apiResponse.choices?.[0]?.message?.content;
-        if (!aiContent) throw new Error('AI未返回有效内容');
-
-        // 解析JSON
-        let aiResult;
-        try {
-          aiResult = JSON.parse(aiContent);
-        } catch (e) {
-          throw new Error('AI返回内容不是有效的JSON格式');
-        }
-
-        navigate('/data-query', { state: aiResult });
+      const response = await dataAPI.aiSearch(searchValue, exportCountries, importCountries)
+        
+        navigate('/data-query', { state: response });
       } catch (error) {
         console.error('AI搜索错误:', error);
         alert('AI搜索失败，请重试');

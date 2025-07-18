@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     DATA_INDEX: str = "customs_data"
     USER_INDEX: str = "customs_users"
 
+    DEEPSEEK_API_URL: str = "https://api.deepseek.com/v1/chat/completions"
+    DEEPSEEK_API_KEY: str = "sk-d543c6900c10491b9255709d0510d711"
+
     class Config:
         case_sensitive = True
         env_file = ".env"
