@@ -170,7 +170,8 @@ class DataService:
             response = self.es_client.update(
                 index=self.index_name,
                 id=data_id,
-                doc=data
+                doc=data,
+                refresh="wait_for" 
             )
 
             logger.info(f"更新海关数据成功: {data_id}")
@@ -187,7 +188,8 @@ class DataService:
         try:
             response = self.es_client.delete(
                 index=self.index_name,
-                id=data_id
+                id=data_id,
+                refresh="wait_for" 
             )
 
             logger.info(f"删除海关数据成功: {data_id}")
@@ -237,7 +239,8 @@ class DataService:
             response = self.es_client.delete_by_query(
                 index=self.index_name,
                 query=query_body,
-                conflicts="proceed"
+                conflicts="proceed",
+                refresh="wait_for" 
             )
 
             logger.info(f"按条件批量删除海关数据成功: {response['deleted']}条记录")

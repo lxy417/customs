@@ -214,7 +214,6 @@ const DataQuery = () => {
 
   // 处理编辑操作
   const handleEdit = (record) => {
-    debugger
     setCurrentRecord(record);
     // 关键修改：将日期字符串转换为 moment 对象
     const formattedRecord = {
@@ -345,7 +344,8 @@ const DataQuery = () => {
       dataIndex: '海关编码',
       key: '海关编码',
       sorter: true,
-      width: 120
+      width: 120,
+      fixed: 'left',
     },
     {
       title: '编码产品描述',
@@ -449,12 +449,18 @@ const DataQuery = () => {
       width: 150
     },
     // 操作列，仅管理员可见
-    { title: '操作', key: 'action', render: (_, record) => (
-      <Space size="middle">
-        <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-        <Button danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>删除</Button>
-      </Space>
-    ), width: 180, visible: user?.is_admin || false }
+    { 
+      title: '操作', 
+      key: 'action', render: (_, record) => (
+        <Space size="middle">
+          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
+          <Button danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>删除</Button>
+        </Space>
+      ), 
+      width: 180, 
+      visible: user?.is_admin || false,
+      fixed: 'right',
+    }
   ];
 
   return (
@@ -668,7 +674,7 @@ const DataQuery = () => {
             onChange={handleTableChange}
             size="middle"
             bordered
-            scroll={{ x: 'max-content' }}
+            scroll={{ x: 'max-content', y: 100 * 5 }}
           />
         </Spin>
       </Card>
