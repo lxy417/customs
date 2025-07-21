@@ -109,94 +109,66 @@ def search_customs_data(
     end_date: Optional[date] = Query(None, description="结束日期 (YYYY-MM-DD)"),
     importer: Optional[str] = Query(None, description="进口商"),
     exporter: Optional[str] = Query(None, description="出口商"),
+    fuzzy_importer: bool = Query(False, description="是否对进口商进行模糊查询"),
+    fuzzy_exporter: bool = Query(False, description="是否对出口商进行模糊查询"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
     sort_by: str = Query("日期", description="排序字段"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$", description="排序方式 (asc/desc)")
 ):
-    """查询海关数据，支持多条件过滤、分页和排序"""
-    # 构建查询条件
-    query_body = {"bool": {"must": [], "filter": []}}
+    """查询海关数据，支持多条件过滤、分页、排序和模糊查询"""
+    # 构建查询参数
+    query_params = {
+        'customs_code': customs_code,
+        'import_country': import_country,
+        'export_country': export_country,
+        'start_date': start_date.strftime("%Y-%m-%d") if start_date else None,
+        'end_date': end_date.strftime("%Y-%m-%d") if end_date else None,
+        'importer': importer,
+        'exporter': exporter,
+        'fuzzy_importer': fuzzy_importer,
+        'fuzzy_exporter': fuzzy_exporter,
+        'page': page,
+        'page_size': page_size,
+        'sort_by': sort_by,
+        'sort_order': sort_order
+    }
+    
     # 添加用户权限过滤（非管理员只能查看授权的海关编码）
     if not current_user.is_admin and current_user.allowed_customs_codes:
-        query_body["bool"]["filter"].append({
-            "terms": {"海关编码": current_user.allowed_customs_codes}
-        })
-    
-    # 添加查询条件
-    if customs_code:
-        query_body["bool"]["must"].append({"term": {"海关编码": customs_code}})
-    
-    if import_country:
-        query_body["bool"]["must"].append({"term": {"进口商所在国家": import_country}})
-    
-    if export_country:
-        query_body["bool"]["must"].append({"term": {"出口商所在国家": export_country}})
-    
-    if start_date or end_date:
-        date_range = {}
-        if start_date:
-            date_range["gte"] = start_date.strftime("%Y-%m-%d")
-        if end_date:
-            date_range["lte"] = end_date.strftime("%Y-%m-%d")
-        query_body["bool"]["must"].append({"range": {"日期": date_range}})
-    
-    if importer:
-        query_body["bool"]["must"].append({"term": {"进口商": importer}})
-    
-    if exporter:
-        query_body["bool"]["must"].append({"term": {"出口商": exporter}})
-    
-        # 更好的处理方式是：如果 must 和 filter 都为空，才使用 match_all。
-    # 否则，就使用构建好的 bool 查询。
-    if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
-        final_query_body = {"match_all": {}}
-    else:
-        final_query_body = query_body
-
-    # 构建排序条件
-    sort = [{sort_by: {"order": sort_order}}]
-    
-    # 计算分页
-    from_index = (page - 1) * page_size
+        query_params['allowed_customs_codes'] = current_user.allowed_customs_codes
     
     try:
-        # 执行查询
-        response = es_client.search(
-            index=index_name,
-            query=final_query_body,
-            sort=sort,
-            from_=from_index,
-            size=page_size,
-            _source=[
-                "海关编码", "编码产品描述", "日期", "进口商", "进口商所在国家", 
-                "出口商", "出口商所在国家", "数量单位", "数量", "公吨", 
-                "金额美元", "详细产品名称", "提单号", "数据来源", "关单号"
-            ]
-        )
-        
-        # 处理结果
-        total = response["hits"]["total"]["value"]
-        hits = response["hits"]["hits"]
-        
-        data = []
-        for hit in hits:
-            # 获取文档的原始 _source 数据
-            doc_data = hit["_source"]
-            # 将 _id 添加到文档数据中，这是关键的一行！
-            doc_data["id"] = hit["_id"]
-            data.append(doc_data)
-        
-        return {
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": (total + page_size - 1) // page_size,
-            "data": data
-        }
+        return data_service.search_customs_data_with_fuzzy(query_params)
     except Exception as e:
         logger.error(f"数据查询失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"数据查询失败: {str(e)}")
+
+@router.get("/importers/suggestions", response_model=List[str], tags=["数据查询"])
+def get_importers_suggestions(
+    query: str = Query(..., description="查询关键词"),
+    limit: int = Query(10, ge=1, le=50, description="返回结果数量限制"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """获取进口商建议列表（用于自动完成）"""
+    try:
+        return data_service.get_importers_suggestions(query, limit)
+    except Exception as e:
+        logger.error(f"获取进口商建议失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取进口商建议失败: {str(e)}")
+
+@router.get("/exporters/suggestions", response_model=List[str], tags=["数据查询"])
+def get_exporters_suggestions(
+    query: str = Query(..., description="查询关键词"),
+    limit: int = Query(10, ge=1, le=50, description="返回结果数量限制"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """获取出口商建议列表（用于自动完成）"""
+    try:
+        return data_service.get_exporters_suggestions(query, limit)
+    except Exception as e:
+        logger.error(f"获取出口商建议失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取出口商建议失败: {str(e)}")
 
 @router.get("/customs-codes", response_model=List[str], tags=["数据查询"])
 def get_all_customs_codes(current_user: UserInDB = Depends(get_current_user)):

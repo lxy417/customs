@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Form, Input, Select, DatePicker, Button, Table, Space, Typography, Card, Spin, message, Row, Col, Modal } from 'antd';
+import { Form, Input, Select, DatePicker, Button, Table, Space, Typography, Card, Spin, message, Row, Col, Modal, AutoComplete } from 'antd';
 import { SearchOutlined, ReloadOutlined, DownloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { dataAPI } from '../utils/api';
 import moment from 'moment';
@@ -24,6 +24,16 @@ const DataQuery = () => {
   const [editForm] = Form.useForm();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // 模糊查询相关状态 - 默认开启模糊搜索
+  const [fuzzySearch, setFuzzySearch] = useState({
+    importer: true,
+    exporter: true
+  });
+  const [suggestions, setSuggestions] = useState({
+    importers: [],
+    exporters: []
+  });
 
   // 从首页接收搜索参数并自动填充
   useEffect(() => {
@@ -110,14 +120,17 @@ const DataQuery = () => {
           dataAPI.getCustomsCodes(),
           dataAPI.getCountries()
         ]);
-        setCustomsCodes(codesResponse);
+        setCustomsCodes(codesResponse || []);
         setCountries({
-          import: countriesResponse.import_countries,
-          export: countriesResponse.export_countries
+          import: countriesResponse?.import_countries || [],
+          export: countriesResponse?.export_countries || []
         });
       } catch (error) {
         console.error('获取选项数据失败:', error);
         message.error('获取选项数据失败，请刷新页面重试');
+        // 设置默认值以防止错误
+        setCustomsCodes([]);
+        setCountries({ import: [], export: [] });
       } finally {
         setLoading(false);
       }
@@ -126,27 +139,58 @@ const DataQuery = () => {
     fetchOptions();
   }, []);
 
+  // 处理进口商搜索建议
+  const handleImporterSearch = async (value) => {
+    if (value && value.length > 1) {
+      try {
+        const response = await dataAPI.getImportersSuggestions(value);
+        setSuggestions(prev => ({ ...prev, importers: response || [] }));
+      } catch (error) {
+        console.error('获取进口商建议失败:', error);
+        setSuggestions(prev => ({ ...prev, importers: [] }));
+      }
+    } else {
+      setSuggestions(prev => ({ ...prev, importers: [] }));
+    }
+  };
+
+  // 处理出口商搜索建议
+  const handleExporterSearch = async (value) => {
+    if (value && value.length > 1) {
+      try {
+        const response = await dataAPI.getExportersSuggestions(value);
+        setSuggestions(prev => ({ ...prev, exporters: response || [] }));
+      } catch (error) {
+        console.error('获取出口商建议失败:', error);
+        setSuggestions(prev => ({ ...prev, exporters: [] }));
+      }
+    } else {
+      setSuggestions(prev => ({ ...prev, exporters: [] }));
+    }
+  };
+
   // 处理查询
   const handleSearch = async (values) => {
     try {
-      // debugger
       setLoading(true);
       // 格式化查询参数
       const params = {
         ...values,
-        page: values.page?values.page:pagination.current,
-        page_size: values.page_size?values.page_size:pagination.pageSize,
+        page: values.page ? values.page : pagination.current,
+        page_size: values.page_size ? values.page_size : pagination.pageSize,
         // 日期范围格式化
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
+        // 添加模糊查询参数
+        fuzzy_importer: fuzzySearch.importer,
+        fuzzy_exporter: fuzzySearch.exporter,
         // 移除date_range属性
         date_range: undefined
       };
 
       // 执行查询
-      const response = await dataAPI.search(params);
-      setDataSource(response.data.map(item => ({ ...item, key: item.id })));
-      debugger
+      const response = await dataAPI.searchData(params);
+      setDataSource((response.data || []).map(item => ({ ...item, key: item.id })));
       setPagination(prev => ({ ...prev, total: response.total, total_pages: response.total_pages}));
     } catch (error) {
       console.error('数据查询失败:', error);
@@ -157,7 +201,20 @@ const DataQuery = () => {
   };
 
   // 处理重置
-  // 处理导出功能
+  const handleReset = () => {
+    form.resetFields();
+    // 重置模糊搜索状态为默认开启
+    setFuzzySearch({
+      importer: true,
+      exporter: true
+    });
+    // 清空建议
+    setSuggestions({
+      importers: [],
+      exporters: []
+    });
+  };
+
   // 处理单个删除
   const handleDelete = async (id) => {
     if (window.confirm('确定要删除这条记录吗？')) {
@@ -228,13 +285,11 @@ const DataQuery = () => {
 
   // 处理保存编辑
   const handleSaveEdit = async () => {
-    debugger
     try {
       const values = await editForm.validateFields();
       setLoading(true);
       // 关键修改：将 moment 对象转换回 YYYY-MM-DD 字符串，以便发送给后端 API
       const formattedValues = {
-          ...values,
           ...values,
           // 如果 values.日期 是 moment 对象，就用 format('YYYY-MM-DD') 转换
           // 否则，如果它已经是字符串（例如，在创建新记录时，如果 DatePicker 没有值），则保留原样
@@ -251,7 +306,7 @@ const DataQuery = () => {
         message.success('更新成功');
       } else {
         // 创建新记录
-        await dataAPI.create(values);
+        await dataAPI.create(formattedValues);
         message.success('创建成功');
       }
       setEditModalVisible(false);
@@ -271,15 +326,14 @@ const DataQuery = () => {
   const handleExport = async () => {
     try {
       setLoading(true);
-      debugger
-      const values = await form.validateFields();
+      const values = form.getFieldsValue();
       // 构建导出参数，包含所有查询条件
       const exportParams = {
         ...values,
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
         date_range: undefined,
-        // // 移除分页参数，由后端控制最大导出数量
+        // 移除分页参数，由后端控制最大导出数量
         sort_by: sorter.field || '日期',
         sort_order: sorter.order === 'ascend' ? 'asc' : 'desc'
       };
@@ -316,18 +370,12 @@ const DataQuery = () => {
     }
   };
 
-  const handleReset = () => {
-    form.resetFields();
-  };
-
   // 处理分页变化
   const handleTableChange = (paginations, filters, sorter) => {
     setPagination(prev => ({...prev, ...paginations}))
     setSorter(sorter);
-    // setPagination(pagination);
     // 获取当前表单值并重新查询
     form.validateFields().then(values => {
-      debugger
       handleSearch({
       ...values,
       sort_by: sorter.field || '日期',
@@ -485,7 +533,7 @@ const DataQuery = () => {
         </Space>
       </div>
       
-      <div   style={{ display:"flex",height:"600px"}} >
+      <div style={{ display:"flex",height:"600px"}} >
         <div style={{height: "100%",flex:1,marginRight:16 }} >
           <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
             <Form
@@ -500,13 +548,14 @@ const DataQuery = () => {
                   <Form.Item name="customs_code" label="海关编码">
                     <Select
                       showSearch
+                      allowClear
                       placeholder="选择或输入海关编码"
                       style={{ width: '100%' }}
                       filterOption={(input, option) =>
                         (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                       }
                     >
-                      {customsCodes.map(code => (
+                      {(customsCodes || []).map(code => (
                         <Option key={code} value={code}>{code}</Option>
                       ))}
                     </Select>
@@ -517,13 +566,14 @@ const DataQuery = () => {
                   <Form.Item name="import_country" label="进口国家">
                     <Select
                       showSearch
+                      allowClear
                       placeholder="选择进口国家"
                       style={{ width: '100%' }}
                       filterOption={(input, option) =>
                         (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                       }
                     >
-                      {countries.import.map(country => (
+                      {(countries.import || []).map(country => (
                         <Option key={country} value={country}>{country}</Option>
                       ))}
                     </Select>
@@ -534,13 +584,14 @@ const DataQuery = () => {
                   <Form.Item name="export_country" label="出口国家">
                     <Select
                       showSearch
+                      allowClear
                       placeholder="选择出口国家"
                       style={{ width: '100%' }}
                       filterOption={(input, option) =>
                         (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                       }
                     >
-                      {countries.export.map(country => (
+                      {(countries.export || []).map(country => (
                         <Option key={country} value={country}>{country}</Option>
                       ))}
                     </Select>
@@ -559,13 +610,45 @@ const DataQuery = () => {
 
                 <Col xs={24} sm={24} md={24} lg={24} xl={24}>
                   <Form.Item name="importer" label="进口商">
-                    <Input placeholder="输入进口商名称" style={{ width: '100%' }} />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <AutoComplete
+                        style={{ flex: 1 }}
+                        placeholder="输入进口商名称"
+                        onSearch={handleImporterSearch}
+                        options={(suggestions.importers || []).map(item => ({ value: item }))}
+                        filterOption={false}
+                        allowClear
+                      />
+                      <Button 
+                        type={fuzzySearch.importer ? "primary" : "default"}
+                        onClick={() => setFuzzySearch(prev => ({ ...prev, importer: !prev.importer }))}
+                        size="middle"
+                      >
+                        模糊
+                      </Button>
+                    </div>
                   </Form.Item>
                 </Col>
 
                <Col xs={24} sm={24} md={24} lg={24} xl={24}>
                   <Form.Item name="exporter" label="出口商">
-                    <Input placeholder="输入出口商名称" style={{ width: '100%' }} />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <AutoComplete
+                        style={{ flex: 1 }}
+                        placeholder="输入出口商名称"
+                        onSearch={handleExporterSearch}
+                        options={(suggestions.exporters || []).map(item => ({ value: item }))}
+                        filterOption={false}
+                        allowClear
+                      />
+                      <Button 
+                        type={fuzzySearch.exporter ? "primary" : "default"}
+                        onClick={() => setFuzzySearch(prev => ({ ...prev, exporter: !prev.exporter }))}
+                        size="middle"
+                      >
+                        模糊
+                      </Button>
+                    </div>
                   </Form.Item>
                 </Col>
 
@@ -594,27 +677,13 @@ const DataQuery = () => {
                   onChange={handleTableChange}
                   size="middle"
                   bordered
-                  scroll={{ x: 'max-content', y: 480 }} // 将 y 值调整为适合你内容的高度
+                  scroll={{ x: 'max-content', y: 480 }}
                 />
               </div> 
             </Spin>
           </div>
-          {/* <Card className="result-card" >
-            <Spin spinning={loading} tip="数据加载中...">
-              <Table
-                columns={columns}
-                dataSource={dataSource.map((item, index) => ({ ...item, key: index }))}
-                pagination={pagination}
-                onChange={handleTableChange}
-                size="middle"
-                bordered
-                scroll={{ x: 'max-content', y: 500 }} // 将 y 值调整为适合你内容的高度
-              />
-            </Spin>
-          </Card> */}
         </div>
       </div>
-     
 
       {/* 编辑/新增数据模态框 */}
       <Modal
@@ -622,8 +691,8 @@ const DataQuery = () => {
         open={editModalVisible}
         onCancel={() => setEditModalVisible(false)}
         footer={[
-          <><Button key="cancel" onClick={() => setEditModalVisible(false)}>取消</Button>
-          <Button key="save" type="primary" loading={loading} onClick={handleSaveEdit}>保存</Button></>
+          <Button key="cancel" onClick={() => setEditModalVisible(false)}>取消</Button>,
+          <Button key="save" type="primary" loading={loading} onClick={handleSaveEdit}>保存</Button>
         ]}
         destroyOnClose
       >
@@ -642,7 +711,7 @@ const DataQuery = () => {
           </Form.Item>
           <Form.Item name="进口商所在国家" label="进口国家" rules={[{ required: true, message: '请选择进口国家' }]}>
             <Select placeholder="请选择进口国家">
-              {countries.import.map(country => (
+              {(countries.import || []).map(country => (
                 <Option key={country} value={country}>{country}</Option>
               ))}
             </Select>
@@ -652,7 +721,7 @@ const DataQuery = () => {
           </Form.Item>
           <Form.Item name="出口商所在国家" label="出口国家" rules={[{ required: true, message: '请选择出口国家' }]}>
             <Select placeholder="请选择出口国家">
-              {countries.export.map(country => (
+              {(countries.export || []).map(country => (
                 <Option key={country} value={country}>{country}</Option>
               ))}
             </Select>
@@ -689,26 +758,22 @@ const DataQuery = () => {
         title="确认删除"
         open={showDeleteConfirm}
         onCancel={() => setShowDeleteConfirm(false)}
-        footer={[<>
+        footer={[
         <Button key="cancel" onClick={() => setShowDeleteConfirm(false)}>
             取消
-          </Button>
+          </Button>,
           <Button key="current" type="primary" danger onClick={() => confirmDelete(false)}>
             删除当前显示的 {dataSource.length} 条记录
-          </Button>
+          </Button>,
           <Button key="all" type="primary" danger onClick={() => confirmDelete(true)}>
             删除所有符合条件的记录
           </Button>
-        </>
-          
         ]}
       >
         <p>请选择删除范围：</p>
         <p>• 当前显示：{dataSource.length} 条记录</p>
         <p>• 所有符合条件：将删除数据库中所有匹配当前搜索条件的记录</p>
       </Modal>
-
-
     </div>
   );
 };

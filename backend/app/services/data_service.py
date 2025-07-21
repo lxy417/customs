@@ -56,9 +56,25 @@ class DataService:
                         "海关编码": {"type": "keyword"},
                         "编码产品描述": {"type": "text"},
                         "日期": {"type": "date", "format": "yyyy-MM-dd"},
-                        "进口商": {"type": "keyword"},
+                        "进口商": {
+                            "type": "keyword",
+                            "fields": {
+                                "text": {
+                                    "type": "text",
+                                    "analyzer": "standard"
+                                }
+                            }
+                        },
                         "进口商所在国家": {"type": "keyword"},
-                        "出口商": {"type": "keyword"},
+                        "出口商": {
+                            "type": "keyword",
+                            "fields": {
+                                "text": {
+                                    "type": "text",
+                                    "analyzer": "standard"
+                                }
+                            }
+                        },
                         "出口商所在国家": {"type": "keyword"},
                         "数量单位": {"type": "keyword"},
                         "数量": {"type": "float"},
@@ -363,4 +379,196 @@ class DataService:
             }
         except Exception as e:
             logger.error(f"数据导出失败: {str(e)}", exc_info=True)
+            raise
+
+    def search_customs_data_with_fuzzy(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """支持模糊查询的海关数据搜索"""
+        try:
+            # 构建查询条件
+            query_body = {"bool": {"must": [], "filter": []}}
+            
+            # 添加用户权限过滤（非管理员只能查看授权的海关编码）
+            if query_params.get('allowed_customs_codes'):
+                query_body["bool"]["filter"].append({
+                    "terms": {"海关编码": query_params['allowed_customs_codes']}
+                })
+            
+            # 添加查询条件
+            if query_params.get('customs_code'):
+                query_body["bool"]["must"].append({"term": {"海关编码": query_params['customs_code']}})
+            
+            if query_params.get('import_country'):
+                query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
+            
+            if query_params.get('export_country'):
+                query_body["bool"]["must"].append({"term": {"出口商所在国家": query_params['export_country']}})
+            
+            if query_params.get('start_date') or query_params.get('end_date'):
+                date_range = {}
+                if query_params.get('start_date'):
+                    date_range["gte"] = query_params['start_date']
+                if query_params.get('end_date'):
+                    date_range["lte"] = query_params['end_date']
+                query_body["bool"]["must"].append({"range": {"日期": date_range}})
+            
+            # 进口商模糊查询 - 默认开启模糊搜索
+            if query_params.get('importer'):
+                importer_query = query_params['importer']
+                fuzzy_importer = query_params.get('fuzzy_importer', True)  # 默认为True
+                
+                if fuzzy_importer:
+                    # 使用模糊查询
+                    query_body["bool"]["must"].append({
+                        "bool": {
+                            "should": [
+                                {"wildcard": {"进口商": f"*{importer_query}*"}},
+                                {"match": {"进口商.text": {"query": importer_query, "fuzziness": "AUTO"}}},
+                                {"match_phrase": {"进口商.text": {"query": importer_query}}}
+                            ],
+                            "minimum_should_match": 1
+                        }
+                    })
+                else:
+                    # 精确查询
+                    query_body["bool"]["must"].append({"term": {"进口商": importer_query}})
+            
+            # 出口商模糊查询 - 默认开启模糊搜索
+            if query_params.get('exporter'):
+                exporter_query = query_params['exporter']
+                fuzzy_exporter = query_params.get('fuzzy_exporter', True)  # 默认为True
+                
+                if fuzzy_exporter:
+                    # 使用模糊查询
+                    query_body["bool"]["must"].append({
+                        "bool": {
+                            "should": [
+                                {"wildcard": {"出口商": f"*{exporter_query}*"}},
+                                {"match": {"出口商.text": {"query": exporter_query, "fuzziness": "AUTO"}}},
+                                {"match_phrase": {"出口商.text": {"query": exporter_query}}}
+                            ],
+                            "minimum_should_match": 1
+                        }
+                    })
+                else:
+                    # 精确查询
+                    query_body["bool"]["must"].append({"term": {"出口商": exporter_query}})
+
+            # 如果没有条件，使用match_all
+            if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
+                final_query_body = {"match_all": {}}
+            else:
+                final_query_body = query_body
+
+            # 处理排序
+            sort_by = query_params.get('sort_by', '日期')
+            sort_order = query_params.get('sort_order', 'desc')
+            sort = [{sort_by: {"order": sort_order}}]
+
+            # 处理分页
+            page = query_params.get('page', 1)
+            page_size = query_params.get('page_size', 20)
+            from_index = (page - 1) * page_size
+
+            # 执行查询
+            response = self.es_client.search(
+                index=self.index_name,
+                query=final_query_body,
+                sort=sort,
+                from_=from_index,
+                size=page_size,
+                _source=[
+                    "海关编码", "编码产品描述", "日期", "进口商", "进口商所在国家", 
+                    "出口商", "出口商所在国家", "数量单位", "数量", "公吨", 
+                    "金额美元", "详细产品名称", "提单号", "数据来源", "关单号"
+                ]
+            )
+
+            total = response["hits"]["total"]["value"]
+            hits = response["hits"]["hits"]
+            
+            data = []
+            for hit in hits:
+                doc_data = hit["_source"]
+                doc_data["id"] = hit["_id"]
+                data.append(doc_data)
+            
+            return {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size,
+                "data": data
+            }
+        except Exception as e:
+            logger.error(f"模糊查询失败: {str(e)}", exc_info=True)
+            raise
+
+    def get_importers_suggestions(self, query: str, limit: int = 10) -> List[str]:
+        """获取进口商建议列表（用于自动完成）"""
+        try:
+            aggs_query = {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "should": [
+                            {"wildcard": {"进口商": f"*{query}*"}},
+                            {"match": {"进口商.text": {"query": query, "fuzziness": "AUTO"}}}
+                        ],
+                        "minimum_should_match": 1
+                    }
+                },
+                "aggs": {
+                    "importers": {
+                        "terms": {
+                            "field": "进口商",
+                            "size": limit,
+                            "order": {"_count": "desc"}
+                        }
+                    }
+                }
+            }
+            
+            response = self.es_client.search(index=self.index_name, body=aggs_query)
+            
+            # 提取进口商列表
+            importers = [bucket["key"] for bucket in response["aggregations"]["importers"]["buckets"]]
+            
+            return importers
+        except Exception as e:
+            logger.error(f"获取进口商建议失败: {str(e)}", exc_info=True)
+            raise
+
+    def get_exporters_suggestions(self, query: str, limit: int = 10) -> List[str]:
+        """获取出口商建议列表（用于自动完成）"""
+        try:
+            aggs_query = {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "should": [
+                            {"wildcard": {"出口商": f"*{query}*"}},
+                            {"match": {"出口商.text": {"query": query, "fuzziness": "AUTO"}}}
+                        ],
+                        "minimum_should_match": 1
+                    }
+                },
+                "aggs": {
+                    "exporters": {
+                        "terms": {
+                            "field": "出口商",
+                            "size": limit,
+                            "order": {"_count": "desc"}
+                        }
+                    }
+                }
+            }
+            
+            response = self.es_client.search(index=self.index_name, body=aggs_query)
+            
+            # 提取出口商列表
+            exporters = [bucket["key"] for bucket in response["aggregations"]["exporters"]["buckets"]]
+            
+            return exporters
+        except Exception as e:
+            logger.error(f"获取出口商建议失败: {str(e)}", exc_info=True)
             raise
