@@ -79,7 +79,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Content>
-        <Footer style={{ textAlign: 'center' }}>海关数据管理系统 ©{new Date().getFullYear()} Created with React & Ant Design</Footer>
+        <Footer style={{ textAlign: 'center' }}>金算平台 ©{new Date().getFullYear()} Created with React & Ant Design</Footer>
       </Layout>
     
   );

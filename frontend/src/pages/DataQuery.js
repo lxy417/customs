@@ -304,7 +304,7 @@ const DataQuery = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `海关数据_${moment().format('YYYYMMDD')}.xlsx`;
+      a.download = `贸易数据_${moment().format('YYYYMMDD')}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
       message.success('数据导出成功');
@@ -466,7 +466,7 @@ const DataQuery = () => {
 
   return (
     <div className="data-query-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
         <Title level={2}>海关数据查询</Title>
         <Space size="middle">
           <Button icon={<DownloadOutlined />} disabled={dataSource.length === 0} size="middle" onClick={handleExport}>
@@ -485,7 +485,6 @@ const DataQuery = () => {
         </Space>
       </div>
       
-
       <div   style={{ display:"flex",height:"600px"}} >
         <div style={{height: "100%",flex:1,marginRight:16 }} >
           <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
