@@ -79,7 +79,7 @@ export const authAPI = {
 // 数据查询相关API
 export const dataAPI = {
   search: (params) => api.get('/api/v1/data/search', { params }),
-  export: (params) => api.get('/api/v1/data/search', { params }),
+  export: (queryParams) => api.post('/api/v1/data/export', { query_params: queryParams }),
   getCustomsCodes: () => api.get('/api/v1/data/customs-codes'),
   getCountries: () => api.get('/api/v1/data/countries'),
   aiSearch: (searchValue, exportCountries, importCountries) => api.post('/api/v1/ai/search', {

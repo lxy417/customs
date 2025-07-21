@@ -1,0 +1,4 @@
+.ad-body .ant-table-body > table {
+  /* 你的样式规则 */
+  min-height: 465px;
+} 

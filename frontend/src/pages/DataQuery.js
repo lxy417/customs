@@ -6,6 +6,7 @@ import { SearchOutlined, ReloadOutlined, DownloadOutlined, EditOutlined, DeleteO
 import { dataAPI } from '../utils/api';
 import moment from 'moment';
 import * as XLSX from 'xlsx';
+import './DataQuery.css';
 moment.locale('zh-cn');
 
 const { Title } = Typography;
@@ -13,6 +14,7 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const DataQuery = () => {
+  const [sorter, setSorter] = useState({});
   const location = useLocation();
   const { user } = useAuth();
   const [countries, setCountries] = useState({ import: [], export: [] });
@@ -269,6 +271,7 @@ const DataQuery = () => {
   const handleExport = async () => {
     try {
       setLoading(true);
+      debugger
       const values = await form.validateFields();
       // 构建导出参数，包含所有查询条件
       const exportParams = {
@@ -276,9 +279,9 @@ const DataQuery = () => {
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
         date_range: undefined,
-        // 导出所有数据，设置分页参数获取全部
-        page: 1,
-        page_size: pagination.total
+        // // 移除分页参数，由后端控制最大导出数量
+        sort_by: sorter.field || '日期',
+        sort_order: sorter.order === 'ascend' ? 'asc' : 'desc'
       };
 
       // 调用API导出数据
@@ -319,10 +322,8 @@ const DataQuery = () => {
 
   // 处理分页变化
   const handleTableChange = (paginations, filters, sorter) => {
-    debugger
-    console.log(paginations)
     setPagination(prev => ({...prev, ...paginations}))
-    console.log(pagination)
+    setSorter(sorter);
     // setPagination(pagination);
     // 获取当前表单值并重新查询
     form.validateFields().then(values => {
@@ -465,113 +466,156 @@ const DataQuery = () => {
 
   return (
     <div className="data-query-page">
-      <Title level={2}>海关数据查询</Title>
-      <Card className="search-card">
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSearch}
-          initialValues={{ sort_by: '日期', sort_order: 'desc' }}
-          className="query-form"
-        >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={8} lg={6} xl={4}>
-              <Form.Item name="customs_code" label="海关编码">
-                <Select
-                  showSearch
-                  placeholder="选择或输入海关编码"
-                  style={{ width: '100%' }}
-                  filterOption={(input, option) =>
-                    (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                >
-                  {customsCodes.map(code => (
-                    <Option key={code} value={code}>{code}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={2}>海关数据查询</Title>
+        <Space size="middle">
+          <Button icon={<DownloadOutlined />} disabled={dataSource.length === 0} size="middle" onClick={handleExport}>
+            导出
+          </Button>
+          {user?.is_admin && (
+            <Button type="primary" onClick={() => { setCurrentRecord(null); editForm.resetFields(); editForm.setFieldsValue({日期: null,});setEditModalVisible(true); }}>
+              新增数据
+            </Button>
+          )}
+          {user?.is_admin && (
+            <Button danger icon={<DeleteOutlined />} size="middle" onClick={handleBulkDelete} disabled={dataSource.length === 0}>
+              批量删除当前结果
+            </Button>
+          )}
+        </Space>
+      </div>
+      
 
-            <Col xs={24} sm={12} md={8} lg={6} xl={4}>
-              <Form.Item name="import_country" label="进口国家">
-                <Select
-                  showSearch
-                  placeholder="选择进口国家"
-                  style={{ width: '100%' }}
-                  filterOption={(input, option) =>
-                    (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                >
-                  {countries.import.map(country => (
-                    <Option key={country} value={country}>{country}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
+      <div   style={{ display:"flex",height:"600px"}} >
+        <div style={{height: "100%",flex:1,marginRight:16 }} >
+          <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSearch}
+              initialValues={{ sort_by: '日期', sort_order: 'desc' }}
+              className="query-form"
+            >
+              <Row gutter={[16, 0]}>
+                <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                  <Form.Item name="customs_code" label="海关编码">
+                    <Select
+                      showSearch
+                      placeholder="选择或输入海关编码"
+                      style={{ width: '100%' }}
+                      filterOption={(input, option) =>
+                        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {customsCodes.map(code => (
+                        <Option key={code} value={code}>{code}</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
 
-            <Col xs={24} sm={12} md={8} lg={6} xl={4}>
-              <Form.Item name="export_country" label="出口国家">
-                <Select
-                  showSearch
-                  placeholder="选择出口国家"
-                  style={{ width: '100%' }}
-                  filterOption={(input, option) =>
-                    (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                >
-                  {countries.export.map(country => (
-                    <Option key={country} value={country}>{country}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
+                <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                  <Form.Item name="import_country" label="进口国家">
+                    <Select
+                      showSearch
+                      placeholder="选择进口国家"
+                      style={{ width: '100%' }}
+                      filterOption={(input, option) =>
+                        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {countries.import.map(country => (
+                        <Option key={country} value={country}>{country}</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
 
-            <Col xs={24} sm={24} md={16} lg={12} xl={8}>
-              <Form.Item name="date_range" label="日期范围">
-                <RangePicker
-                  format="YYYY-MM-DD"
-                  style={{ width: '100%' }}
-                  placeholder={['开始日期', '结束日期']}
+                <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                  <Form.Item name="export_country" label="出口国家">
+                    <Select
+                      showSearch
+                      placeholder="选择出口国家"
+                      style={{ width: '100%' }}
+                      filterOption={(input, option) =>
+                        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {countries.export.map(country => (
+                        <Option key={country} value={country}>{country}</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                  <Form.Item name="date_range" label="日期范围">
+                    <RangePicker
+                      format="YYYY-MM-DD"
+                      style={{ width: '100%' }}
+                      placeholder={['开始日期', '结束日期']}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                  <Form.Item name="importer" label="进口商">
+                    <Input placeholder="输入进口商名称" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+
+               <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                  <Form.Item name="exporter" label="出口商">
+                    <Input placeholder="输入出口商名称" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={24} md={24} lg={24} xl={24} style={{ textAlign: 'right' }}>
+                  <Space size="middle">
+                    <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={loading} size="middle">
+                      查询
+                    </Button>
+                    <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle">
+                      重置
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </Form>
+          </div>
+        </div>
+        <div  style={{height:"100%",flex:3,width:0}}>
+          <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
+            <Spin spinning={loading} tip="数据加载中...">
+              <div className="ad-body">
+                <Table
+                  columns={columns}
+                  dataSource={dataSource.map((item, index) => ({ ...item, key: index }))}
+                  pagination={pagination}
+                  onChange={handleTableChange}
+                  size="middle"
+                  bordered
+                  scroll={{ x: 'max-content', y: 480 }} // 将 y 值调整为适合你内容的高度
                 />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} sm={12} md={8} lg={6} xl={4}>
-              <Form.Item name="importer" label="进口商">
-                <Input placeholder="输入进口商名称" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} sm={12} md={8} lg={6} xl={4}>
-              <Form.Item name="exporter" label="出口商">
-                <Input placeholder="输入出口商名称" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} sm={24} md={24} lg={24} xl={24} style={{ textAlign: 'right' }}>
-              <Space size="middle">
-                <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={loading} size="middle">
-              查询
-            </Button>
-            {user?.is_admin && (
-              <Button type="primary" onClick={() => { setCurrentRecord(null); editForm.resetFields(); editForm.setFieldsValue({日期: null,});setEditModalVisible(true); }}>新增数据</Button>
-            )}
-                <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle">
-                  重置
-                </Button>
-                <Button icon={<DownloadOutlined />} disabled={dataSource.length === 0} size="middle" onClick={handleExport}>
-              导出
-            </Button>
-            {user?.is_admin && (
-              <Button danger icon={<DeleteOutlined />} size="middle" onClick={handleBulkDelete} disabled={dataSource.length === 0}>
-                批量删除当前结果
-              </Button>
-            )}
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
+              </div> 
+            </Spin>
+          </div>
+          {/* <Card className="result-card" >
+            <Spin spinning={loading} tip="数据加载中...">
+              <Table
+                columns={columns}
+                dataSource={dataSource.map((item, index) => ({ ...item, key: index }))}
+                pagination={pagination}
+                onChange={handleTableChange}
+                size="middle"
+                bordered
+                scroll={{ x: 'max-content', y: 500 }} // 将 y 值调整为适合你内容的高度
+              />
+            </Spin>
+          </Card> */}
+        </div>
+      </div>
+     
 
       {/* 编辑/新增数据模态框 */}
       <Modal
@@ -665,19 +709,7 @@ const DataQuery = () => {
         <p>• 所有符合条件：将删除数据库中所有匹配当前搜索条件的记录</p>
       </Modal>
 
-      <Card className="result-card" style={{ marginTop: 16 }}>
-        <Spin spinning={loading} tip="数据加载中...">
-          <Table
-            columns={columns}
-            dataSource={dataSource.map((item, index) => ({ ...item, key: index }))}
-            pagination={pagination}
-            onChange={handleTableChange}
-            size="middle"
-            bordered
-            scroll={{ x: 'max-content', y: 100 * 5 }}
-          />
-        </Spin>
-      </Card>
+
     </div>
   );
 };
