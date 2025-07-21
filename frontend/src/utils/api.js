@@ -116,6 +116,18 @@ export const userAPI = {
   getUser: (username) => api.get(`/api/v1/user/${username}`)
 };
 
+// 用户组管理相关API
+export const groupAPI = {
+  createGroup: (groupData) => api.post('/api/v1/group', groupData),
+  updateGroup: (groupId, groupData) => api.put(`/api/v1/group/${groupId}`, groupData),
+  deleteGroup: (groupId) => api.delete(`/api/v1/group/${groupId}`),
+  getGroups: () => api.get('/api/v1/group'),
+  getGroup: (groupId) => api.get(`/api/v1/group/${groupId}`),
+  getAvailablePermissions: () => api.get('/api/v1/group/permissions/available'),
+  addUserToGroup: (groupId, username) => api.post(`/api/v1/group/${groupId}/users/${username}`),
+  removeUserFromGroup: (groupId, username) => api.delete(`/api/v1/group/${groupId}/users/${username}`)
+};
+
 // 数据导入相关API
 export const importAPI = {
   importExcel: (file) => {

@@ -17,17 +17,20 @@ class UserCreate(BaseModel):
     password: str
     allowed_customs_codes: Optional[List[str]] = None
     is_admin: bool = False
+    group_ids: Optional[List[str]] = []  # 新增：用户组ID列表
 
 class UserUpdate(BaseModel):
     password: Optional[str] = None
     allowed_customs_codes: Optional[List[str]] = None
     is_admin: Optional[bool] = None
+    group_ids: Optional[List[str]] = None  # 新增：用户组ID列表
 
 class UserInDB(BaseModel):
     username: str
     hashed_password: str
     allowed_customs_codes: List[str] = []
     is_admin: bool = False
+    group_ids: List[str] = []  # 新增：用户组ID列表
     created_at: datetime = datetime.utcnow()
     updated_at: datetime = datetime.utcnow()
 
@@ -55,6 +58,7 @@ class UserService:
                         "hashed_password": {"type": "text"},
                         "allowed_customs_codes": {"type": "keyword"},
                         "is_admin": {"type": "boolean"},
+                        "group_ids": {"type": "keyword"},  # 新增：用户组ID字段
                         "created_at": {"type": "date"},
                         "updated_at": {"type": "date"}
                     }
@@ -77,7 +81,8 @@ class UserService:
                 username=admin_username,
                 password=admin_password,
                 allowed_customs_codes=[],
-                is_admin=True
+                is_admin=True,
+                group_ids=[]
             )
             self.create_user(user_data)
             logger.warning(f"已创建默认管理员用户: {admin_username}, 初始密码: {admin_password}, 请尽快修改!")
@@ -131,6 +136,7 @@ class UserService:
             "hashed_password": self.get_password_hash(user_create.password),
             "allowed_customs_codes": user_create.allowed_customs_codes or [],
             "is_admin": user_create.is_admin,
+            "group_ids": user_create.group_ids or [],  # 新增：用户组ID
             "created_at": now,
             "updated_at": now
         }
@@ -159,6 +165,8 @@ class UserService:
             update_data["allowed_customs_codes"] = user_update.allowed_customs_codes
         if user_update.is_admin is not None:
             update_data["is_admin"] = user_update.is_admin
+        if user_update.group_ids is not None:  # 新增：更新用户组
+            update_data["group_ids"] = user_update.group_ids
         update_data["updated_at"] = datetime.utcnow()
 
         # 更新用户数据
@@ -204,6 +212,71 @@ class UserService:
             logger.error(f"列出用户失败: {str(e)}")
             return []
 
+    def get_users_by_group(self, group_id: str) -> List[Dict[str, Any]]:
+        """获取属于特定用户组的用户列表"""
+        try:
+            response = self.es_client.search(
+                index=self.index_name,
+                query={"term": {"group_ids": group_id}},
+                size=1000
+            )
+            users = []
+            for hit in response["hits"]["hits"]:
+                user_data = hit["_source"]
+                user_data.pop("hashed_password", None)
+                users.append(user_data)
+            return users
+        except Exception as e:
+            logger.error(f"获取用户组用户失败: {str(e)}")
+            return []
+
+    def get_user_permissions(self, username: str) -> List[str]:
+        """获取用户的所有权限（包括用户组权限）"""
+        user = self.get_user_by_username(username)
+        if not user:
+            return []
+        
+        # 管理员拥有所有权限
+        if user.is_admin:
+            from .group_service import GroupService
+            group_service = GroupService()
+            return group_service.get_available_permissions()
+        
+        # 收集用户组权限
+        permissions = set()
+        if user.group_ids:
+            from .group_service import GroupService
+            group_service = GroupService()
+            for group_id in user.group_ids:
+                group = group_service.get_group_by_id(group_id)
+                if group:
+                    permissions.update(group.permissions)
+        
+        return list(permissions)
+
+    def get_user_customs_codes(self, username: str) -> List[str]:
+        """获取用户可访问的海关编码（包括用户组权限）"""
+        user = self.get_user_by_username(username)
+        if not user:
+            return []
+        
+        # 管理员可以访问所有海关编码
+        if user.is_admin:
+            return []  # 空列表表示可以访问所有
+        
+        # 收集用户直接权限和用户组权限
+        customs_codes = set(user.allowed_customs_codes)
+        
+        if user.group_ids:
+            from .group_service import GroupService
+            group_service = GroupService()
+            for group_id in user.group_ids:
+                group = group_service.get_group_by_id(group_id)
+                if group and group.allowed_customs_codes:
+                    customs_codes.update(group.allowed_customs_codes)
+        
+        return list(customs_codes)
+
     def authenticate_user(self, username: str, password: str) -> Optional[UserInDB]:
         """验证用户凭据"""
         user = self.get_user_by_username(username)
@@ -219,5 +292,12 @@ class UserService:
         # 管理员可以访问所有数据
         if user.is_admin:
             return True
-        # 检查用户是否有权限访问该海关编码
-        return customs_code in user.allowed_customs_codes
+        
+        # 获取用户可访问的海关编码（包括用户组权限）
+        allowed_codes = self.get_user_customs_codes(username)
+        return not allowed_codes or customs_code in allowed_codes
+
+    def check_permission(self, username: str, permission: str) -> bool:
+        """检查用户是否有特定权限"""
+        user_permissions = self.get_user_permissions(username)
+        return permission in user_permissions
