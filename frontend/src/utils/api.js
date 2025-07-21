@@ -14,7 +14,15 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    // 从本地存储获取token并添加到请求头
+    debugger
+    console.log('=== 发送请求详情 ===');
+    console.log('请求URL:', config.baseURL + config.url);
+    console.log('请求方法:', config.method);
+    console.log('请求头:', config.headers);
+    console.log('请求参数:', config.params);
+    console.log('请求数据:', config.data);
+    console.log('环境变量 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+    console.log('===================');
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -22,15 +30,30 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('请求错误:', error);
+    console.error('请求拦截器错误:', error);
     return Promise.reject(error);
   }
 );
 
 // 响应拦截器
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    console.log('=== 收到响应详情 ===');
+    console.log('响应状态:', response.status);
+    console.log('响应头:', response.headers);
+    console.log('响应数据:', response.data);
+    console.log('===================');
+    return response.data;
+  },
   (error) => {
+    console.error('=== 响应错误详情 ===');
+    console.error('错误对象:', error);
+    console.error('错误消息:', error.message);
+    console.error('错误代码:', error.code);
+    console.error('请求配置:', error.config);
+    console.error('响应数据:', error.response?.data);
+    console.error('响应状态:', error.response?.status);
+    console.error('===================');
     const status = error.response?.status;
     let errorMsg = '操作失败，请重试';
     if (error.response?.data) {
@@ -155,5 +178,34 @@ export const importAPI = {
     });
   }
 };
+
+
+// 增强导入API
+export const enhancedImportAPI = {
+  // 批量上传文件
+  uploadFiles: (formData) => {
+    return api.post('/api/v1/enhanced-import/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+
+  // 获取导入历史
+  getImportHistory: (params = {}) => {
+    return api.get('/api/v1/enhanced-import/history', { params });
+  },
+
+  // 获取任务详情
+  getTaskDetail: (taskId) => {
+    return api.get(`/api/v1/enhanced-import/task/${taskId}`);
+  },
+
+  // 获取统计信息
+  getImportStatistics: () => {
+    return api.get('/api/v1/enhanced-import/statistics');
+  }
+};
+
 
 export default api;

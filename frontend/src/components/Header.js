@@ -1,5 +1,5 @@
 import { Layout, Dropdown, Menu, Avatar, Typography, Space } from 'antd';
-import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Header.css';
@@ -43,6 +43,7 @@ const AppHeader = () => {
     const path = location.pathname;
     if (path.includes('/data-query')) return ['data-query'];
     if (path.includes('/user-management')) return ['user-management'];
+    if (path.includes('/enhanced-import')) return ['enhanced-import'];
     if (path.includes('/import')) return ['import'];
     if (path.includes('/home')) return ['home'];
     return ['home'];
@@ -68,6 +69,12 @@ const AppHeader = () => {
         {user?.is_admin && (
         <Menu.Item key="import" icon={<ImportOutlined />} className="sidebar-menu-item">
           <Link to="/import">数据导入</Link>
+        </Menu.Item>
+        )}
+
+        {user?.is_admin && (
+        <Menu.Item key="enhanced-import" icon={<CloudUploadOutlined />} className="sidebar-menu-item">
+          <Link to="/enhanced-import">批量导入</Link>
         </Menu.Item>
         )}
 

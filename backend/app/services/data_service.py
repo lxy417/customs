@@ -54,7 +54,15 @@ class DataService:
                 "mappings": {
                     "properties": {
                         "海关编码": {"type": "keyword"},
-                        "编码产品描述": {"type": "text"},
+                        "编码产品描述": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword",
+                                    "ignore_above": 256
+                                }
+                            }
+                        },
                         "日期": {"type": "date", "format": "yyyy-MM-dd"},
                         "进口商": {
                             "type": "keyword",
@@ -80,7 +88,15 @@ class DataService:
                         "数量": {"type": "float"},
                         "公吨": {"type": "float"},
                         "金额美元": {"type": "float"},
-                        "详细产品名称": {"type": "text"},
+                        "详细产品名称": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword",
+                                    "ignore_above": 256
+                                }
+                            }
+                        },
                         "提单号": {"type": "keyword"},
                         "数据来源": {"type": "keyword"},
                         "关单号": {"type": "keyword"},
@@ -459,10 +475,19 @@ class DataService:
             else:
                 final_query_body = query_body
 
-            # 处理排序
+            # 处理排序 - 为text类型字段自动添加.keyword后缀
             sort_by = query_params.get('sort_by', '日期')
             sort_order = query_params.get('sort_order', 'desc')
-            sort = [{sort_by: {"order": sort_order}}]
+            
+            # 定义需要使用keyword子字段进行排序的text类型字段
+            text_fields_with_keyword = ['编码产品描述', '详细产品名称']
+            
+            if sort_by in text_fields_with_keyword:
+                sort_field = f"{sort_by}.keyword"
+            else:
+                sort_field = sort_by
+                
+            sort = [{sort_field: {"order": sort_order}}]
 
             # 处理分页
             page = query_params.get('page', 1)

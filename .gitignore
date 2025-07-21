@@ -1,5 +1,7 @@
 company_data/
 
+processed_data/
+
 # 依赖
 node_modules/
 .pnp/

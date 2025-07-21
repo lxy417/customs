@@ -10,6 +10,7 @@ import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Header from './components/Header';
 import './App.css';
+import EnhancedImport from './pages/EnhancedImport';
 
 const { Content, Footer } = Layout;
 
@@ -76,6 +77,7 @@ function App() {
             <Route path="/import" element={<AdminRoute element={<Import />} />} />
             <Route path="/home" element={<PrivateRoute element={<Home />} />} />
             <Route path="/" element={<Navigate to="/home" replace />} />
+             <Route path="/enhanced-import" element={<AdminRoute element={<EnhancedImport />} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Content>
