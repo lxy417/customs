@@ -87,7 +87,7 @@ const Home = () => {
         maxWidth: '800px',
         textAlign: 'center'
       }}>
-        <h1 style={{ marginBottom: '30px', color: '#1890ff' }}>海关数据查询系统</h1>
+        <h1 style={{ marginBottom: '30px', color: '#1890ff' }}>海关数据查询</h1>
         <Space.Compact>
         <Select
             value={searchType}
