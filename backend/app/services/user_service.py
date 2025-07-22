@@ -231,28 +231,31 @@ class UserService:
             return []
 
     def get_user_permissions(self, username: str) -> List[str]:
-        """获取用户的所有权限（包括用户组权限）"""
+        """获取用户的功能权限（基于角色）"""
         user = self.get_user_by_username(username)
         if not user:
             return []
         
         # 管理员拥有所有权限
         if user.is_admin:
-            from .group_service import GroupService
-            group_service = GroupService()
-            return group_service.get_available_permissions()
-        
-        # 收集用户组权限
-        permissions = set()
-        if user.group_ids:
-            from .group_service import GroupService
-            group_service = GroupService()
-            for group_id in user.group_ids:
-                group = group_service.get_group_by_id(group_id)
-                if group:
-                    permissions.update(group.permissions)
-        
-        return list(permissions)
+            return [
+                "data_view",      # 查看数据
+                "data_export",    # 导出数据
+                "data_create",    # 创建数据
+                "data_update",    # 更新数据
+                "data_delete",    # 删除数据
+                "data_import",    # 导入数据
+                "user_manage",    # 用户管理
+                "group_manage",   # 用户组管理
+                "ai_search",      # AI搜索
+            ]
+        else:
+            # 普通用户只有基本权限
+            return [
+                "data_view",      # 查看数据
+                "data_export",    # 导出数据
+                "ai_search",      # AI搜索
+            ]
 
     def get_user_customs_codes(self, username: str) -> List[str]:
         """获取用户可访问的海关编码（包括用户组权限）"""
@@ -265,7 +268,7 @@ class UserService:
             return []  # 空列表表示可以访问所有
         
         # 收集用户直接权限和用户组权限
-        customs_codes = set(user.allowed_customs_codes)
+        customs_codes = set(user.allowed_customs_codes or [])
         
         if user.group_ids:
             from .group_service import GroupService

@@ -4,7 +4,7 @@ from datetime import date
 from app.utils.elasticsearch import ESClient
 from app.config.settings import settings
 from .auth import get_current_user
-from app.services.user_service import UserInDB
+from app.services.user_service import UserInDB, UserService
 from app.services.data_service import DataService, CustomsDataCreate, CustomsDataUpdate
 import logging
 
@@ -13,6 +13,7 @@ router = APIRouter()
 es_client = ESClient.get_client()
 index_name = settings.DATA_INDEX
 data_service = DataService()
+user_service = UserService()  # 添加用户服务实例
 
 @router.post("/", response_model=Dict[str, Any], tags=["数据管理"])
 def create_customs_data(
@@ -134,9 +135,11 @@ def search_customs_data(
         'sort_order': sort_order
     }
     
-    # 添加用户权限过滤（非管理员只能查看授权的海关编码）
-    if not current_user.is_admin and current_user.allowed_customs_codes:
-        query_params['allowed_customs_codes'] = current_user.allowed_customs_codes
+    # 修复：使用用户服务获取完整的海关编码权限（包括用户组权限）
+    if not current_user.is_admin:
+        allowed_customs_codes = user_service.get_user_customs_codes(current_user.username)
+        if allowed_customs_codes:  # 如果有限制，则应用过滤
+            query_params['allowed_customs_codes'] = allowed_customs_codes
     
     try:
         return data_service.search_customs_data_with_fuzzy(query_params)
@@ -188,11 +191,13 @@ def get_all_customs_codes(current_user: UserInDB = Depends(get_current_user)):
             }
         }
         
-        # 如果不是管理员，只返回有权限的海关编码
-        if not current_user.is_admin and current_user.allowed_customs_codes:
-            aggs_query["query"] = {
-                "terms": {"海关编码": current_user.allowed_customs_codes}
-            }
+        # 修复：使用用户服务获取完整的海关编码权限（包括用户组权限）
+        if not current_user.is_admin:
+            allowed_customs_codes = user_service.get_user_customs_codes(current_user.username)
+            if allowed_customs_codes:  # 如果有限制，则应用过滤
+                aggs_query["query"] = {
+                    "terms": {"海关编码": allowed_customs_codes}
+                }
         
         response = es_client.search(index=index_name, body=aggs_query)
         
@@ -229,11 +234,13 @@ def get_all_countries(current_user: UserInDB = Depends(get_current_user)):
             }
         }
         
-        # 如果不是管理员，只返回有权限的海关编码相关的国家
-        if not current_user.is_admin and current_user.allowed_customs_codes:
-            aggs_query["query"] = {
-                "terms": {"海关编码": current_user.allowed_customs_codes}
-            }
+        # 修复：使用用户服务获取完整的海关编码权限（包括用户组权限）
+        if not current_user.is_admin:
+            allowed_customs_codes = user_service.get_user_customs_codes(current_user.username)
+            if allowed_customs_codes:  # 如果有限制，则应用过滤
+                aggs_query["query"] = {
+                    "terms": {"海关编码": allowed_customs_codes}
+                }
         
         response = es_client.search(index=index_name, body=aggs_query)
         

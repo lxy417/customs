@@ -15,23 +15,15 @@ def create_group(
     group_create: GroupCreate,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """创建新用户组（仅管理员）"""
+    """创建用户组（仅管理员）"""
     if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限创建用户组，需要管理员权限"
-        )
-    
+        raise HTTPException(status_code=403, detail="无权限执行此操作")
     try:
-        group = group_service.create_group(group_create)
-        return {
-            "message": "用户组创建成功",
-            "group": group
-        }
+        return group_service.create_group(group_create)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"创建用户组失败: {e}")
+        logger.error(f"创建用户组失败: {str(e)}")
         raise HTTPException(status_code=500, detail="创建用户组失败")
 
 @router.put("/{group_id}", response_model=Dict[str, Any], tags=["用户组管理"])
@@ -120,15 +112,7 @@ def get_group(
     
     return group_dict
 
-@router.get("/permissions/available", response_model=List[str], tags=["用户组管理"])
-def get_available_permissions(current_user: UserInDB = Depends(get_current_user)):
-    """获取可用的权限列表（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限查看权限列表"
-        )
-    return group_service.get_available_permissions()
+# 移除获取可用权限的端点，因为用户组不再管理功能权限
 
 @router.post("/{group_id}/users/{username}", response_model=Dict[str, Any], tags=["用户组管理"])
 def add_user_to_group(

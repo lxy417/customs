@@ -9,11 +9,9 @@ import {
   message, 
   Typography, 
   Card, 
-  Spin, 
   Space, 
   Popconfirm,
   Tag,
-  Divider,
   Transfer
 } from 'antd';
 import { 
@@ -40,7 +38,6 @@ const GroupManagement = () => {
   const [form] = Form.useForm();
   const [currentGroup, setCurrentGroup] = useState(null);
   const [customsCodes, setCustomsCodes] = useState([]);
-  const [availablePermissions, setAvailablePermissions] = useState([]);
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [transferData, setTransferData] = useState([]);
@@ -77,16 +74,7 @@ const GroupManagement = () => {
       setCustomsCodes(response);
     } catch (error) {
       console.error('获取海关编码失败:', error);
-    }
-  };
-
-  // 获取可用权限列表
-  const fetchAvailablePermissions = async () => {
-    try {
-      const response = await groupAPI.getAvailablePermissions();
-      setAvailablePermissions(response);
-    } catch (error) {
-      console.error('获取权限列表失败:', error);
+      message.error('获取海关编码列表失败');
     }
   };
 
@@ -94,21 +82,7 @@ const GroupManagement = () => {
     fetchGroups();
     fetchUsers();
     fetchCustomsCodes();
-    fetchAvailablePermissions();
   }, []);
-
-  // 权限名称映射
-  const permissionNames = {
-    'data_view': '查看数据',
-    'data_export': '导出数据',
-    'data_create': '创建数据',
-    'data_update': '更新数据',
-    'data_delete': '删除数据',
-    'data_import': '导入数据',
-    'user_manage': '用户管理',
-    'group_manage': '用户组管理',
-    'ai_search': 'AI搜索'
-  };
 
   // 表格列定义
   const columns = [
@@ -116,46 +90,35 @@ const GroupManagement = () => {
       title: '用户组名称',
       dataIndex: 'name',
       key: 'name',
+      width: 150,
       render: (text) => <strong>{text}</strong>
     },
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: true
+      width: 200,
+      ellipsis: true,
+      render: (text) => text || <span style={{ color: '#999' }}>无描述</span>
     },
     {
-      title: '权限',
-      dataIndex: 'permissions',
-      key: 'permissions',
-      render: (permissions) => (
-        <div>
-          {permissions?.slice(0, 3).map(permission => (
-            <Tag key={permission} color="blue" style={{ marginBottom: 4 }}>
-              {permissionNames[permission] || permission}
-            </Tag>
-          ))}
-          {permissions?.length > 3 && (
-            <Tag color="default">+{permissions.length - 3}个</Tag>
-          )}
-        </div>
-      )
-    },
-    {
-      title: '海关编码',
+      title: '允许访问的海关编码',
       dataIndex: 'allowed_customs_codes',
       key: 'allowed_customs_codes',
+      width: 250,
       render: (codes) => (
         <div>
-          {codes?.slice(0, 2).map(code => (
+          {codes?.slice(0, 3).map(code => (
             <Tag key={code} color="green" style={{ marginBottom: 4 }}>
               {code}
             </Tag>
           ))}
-          {codes?.length > 2 && (
-            <Tag color="default">+{codes.length - 2}个</Tag>
+          {codes?.length > 3 && (
+            <Tag color="default">+{codes.length - 3}个</Tag>
           )}
-          {(!codes || codes.length === 0) && <span style={{ color: '#999' }}>无限制</span>}
+          {(!codes || codes.length === 0) && (
+            <span style={{ color: '#999' }}>无限制</span>
+          )}
         </div>
       )
     },
@@ -163,11 +126,13 @@ const GroupManagement = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      width: 150,
       render: (date) => new Date(date).toLocaleString()
     },
     {
       title: '操作',
       key: 'action',
+      width: 150,
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -204,25 +169,30 @@ const GroupManagement = () => {
     }
   ];
 
-  // 处理创建用户组
-  const handleCreate = () => {
+  // 显示创建用户组模态框
+  const showCreateModal = () => {
     setModalType('create');
     setCurrentGroup(null);
     form.resetFields();
     setModalVisible(true);
   };
 
-  // 处理编辑用户组
+  // 显示编辑用户组模态框
   const handleEdit = (group) => {
     setModalType('edit');
     setCurrentGroup(group);
     form.setFieldsValue({
       name: group.name,
       description: group.description,
-      permissions: group.permissions || [],
       allowed_customs_codes: group.allowed_customs_codes || []
     });
     setModalVisible(true);
+  };
+
+  // 关闭模态框
+  const handleCancel = () => {
+    setModalVisible(false);
+    form.resetFields();
   };
 
   // 处理删除用户组
@@ -264,11 +234,12 @@ const GroupManagement = () => {
     }
   };
 
-  // 处理表单提交
+  // 提交表单（创建或编辑用户组）
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      
+      setLoading(true);
+
       if (modalType === 'create') {
         await groupAPI.createGroup(values);
         message.success('用户组创建成功');
@@ -280,8 +251,10 @@ const GroupManagement = () => {
       setModalVisible(false);
       fetchGroups();
     } catch (error) {
-      console.error('操作失败:', error);
-      message.error('操作失败，请重试');
+      console.error(`${modalType === 'create' ? '创建' : '更新'}用户组失败:`, error);
+      message.error(`${modalType === 'create' ? '创建' : '更新'}用户组失败，请重试`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -322,46 +295,44 @@ const GroupManagement = () => {
   };
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Card>
-        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <TeamOutlined style={{ marginRight: '8px' }} />
-            用户组管理
-          </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreate}
-          >
-            创建用户组
-          </Button>
-        </div>
+    <div>
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={4} style={{ margin: 0 }}>
+          用户组列表
+        </Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={showCreateModal}
+        >
+          创建用户组
+        </Button>
+      </div>
 
-        <Table
-          columns={columns}
-          dataSource={groups}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个用户组`
-          }}
-        />
-      </Card>
+      <Table
+        columns={columns}
+        dataSource={groups}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 个用户组`
+        }}
+        scroll={{ x: 1000 }}
+      />
 
       {/* 创建/编辑用户组模态框 */}
       <Modal
         title={modalType === 'create' ? '创建用户组' : '编辑用户组'}
         open={modalVisible}
-        onCancel={() => setModalVisible(false)}
+        onCancel={handleCancel}
         footer={[
-          <Button key="cancel" onClick={() => setModalVisible(false)}>
+          <Button key="cancel" onClick={handleCancel}>
             <CloseOutlined /> 取消
           </Button>,
-          <Button key="submit" type="primary" onClick={handleSubmit}>
+          <Button key="submit" type="primary" onClick={handleSubmit} loading={loading}>
             <SaveOutlined /> {modalType === 'create' ? '创建' : '更新'}
           </Button>
         ]}
@@ -371,7 +342,6 @@ const GroupManagement = () => {
           form={form}
           layout="vertical"
           initialValues={{
-            permissions: [],
             allowed_customs_codes: []
           }}
         >
@@ -399,26 +369,9 @@ const GroupManagement = () => {
           </Form.Item>
 
           <Form.Item
-            label="权限"
-            name="permissions"
-          >
-            <Select
-              mode="multiple"
-              placeholder="请选择权限"
-              style={{ width: '100%' }}
-            >
-              {availablePermissions.map(permission => (
-                <Option key={permission} value={permission}>
-                  {permissionNames[permission] || permission}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
             label="允许访问的海关编码"
             name="allowed_customs_codes"
-            extra="不选择表示可以访问所有海关编码"
+            extra="不选择表示可以访问所有海关编码，此权限与用户直接权限叠加"
           >
             <Select
               mode="multiple"

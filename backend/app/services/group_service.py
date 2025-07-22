@@ -1,5 +1,5 @@
+from typing import Optional, List, Dict, Any
 from datetime import datetime
-from typing import Optional, Dict, List, Any
 import logging
 from app.utils.elasticsearch import ESClient
 from pydantic import BaseModel
@@ -9,21 +9,18 @@ logger = logging.getLogger(__name__)
 class GroupCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    permissions: List[str] = []
-    allowed_customs_codes: Optional[List[str]] = None
+    allowed_customs_codes: Optional[List[str]] = None  # 只保留海关编码权限
 
 class GroupUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    permissions: Optional[List[str]] = None
-    allowed_customs_codes: Optional[List[str]] = None
+    allowed_customs_codes: Optional[List[str]] = None  # 只保留海关编码权限
 
 class GroupInDB(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
-    permissions: List[str] = []
-    allowed_customs_codes: List[str] = []
+    allowed_customs_codes: List[str] = []  # 只保留海关编码权限
     created_at: datetime = datetime.utcnow()
     updated_at: datetime = datetime.utcnow()
 
@@ -42,8 +39,7 @@ class GroupService:
                         "properties": {
                             "name": {"type": "keyword"},
                             "description": {"type": "text"},
-                            "permissions": {"type": "keyword"},
-                            "allowed_customs_codes": {"type": "keyword"},
+                            "allowed_customs_codes": {"type": "keyword"},  # 移除permissions字段
                             "created_at": {"type": "date"},
                             "updated_at": {"type": "date"}
                         }
@@ -64,15 +60,14 @@ class GroupService:
             group_data = {
                 "name": group_create.name,
                 "description": group_create.description,
-                "permissions": group_create.permissions,
-                "allowed_customs_codes": group_create.allowed_customs_codes or [],
+                "allowed_customs_codes": group_create.allowed_customs_codes or [],  # 移除permissions
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow()
             }
 
             response = self.es_client.index(
                 index=self.index_name,
-                body=group_data
+                document=group_data
             )
 
             group_data["id"] = response["_id"]
@@ -131,8 +126,6 @@ class GroupService:
                 update_data["name"] = group_update.name
             if group_update.description is not None:
                 update_data["description"] = group_update.description
-            if group_update.permissions is not None:
-                update_data["permissions"] = group_update.permissions
             if group_update.allowed_customs_codes is not None:
                 update_data["allowed_customs_codes"] = group_update.allowed_customs_codes
             
@@ -197,16 +190,4 @@ class GroupService:
             logger.error(f"获取用户组列表失败: {e}")
             return []
 
-    def get_available_permissions(self) -> List[str]:
-        """获取可用的权限列表"""
-        return [
-            "data_view",      # 查看数据
-            "data_export",    # 导出数据
-            "data_create",    # 创建数据
-            "data_update",    # 更新数据
-            "data_delete",    # 删除数据
-            "data_import",    # 导入数据
-            "user_manage",    # 用户管理
-            "group_manage",   # 用户组管理
-            "ai_search",      # AI搜索
-        ]
+    # 移除 get_available_permissions 方法，因为用户组不再管理功能权限

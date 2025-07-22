@@ -161,7 +161,7 @@ export const groupAPI = {
   deleteGroup: (groupId) => api.delete(`/api/v1/group/${groupId}`),
   getGroups: () => api.get('/api/v1/group'),
   getGroup: (groupId) => api.get(`/api/v1/group/${groupId}`),
-  getAvailablePermissions: () => api.get('/api/v1/group/permissions/available'),
+  // 移除 getAvailablePermissions，因为用户组不再管理功能权限
   addUserToGroup: (groupId, username) => api.post(`/api/v1/group/${groupId}/users/${username}`),
   removeUserFromGroup: (groupId, username) => api.delete(`/api/v1/group/${groupId}/users/${username}`)
 };
