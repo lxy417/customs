@@ -1,6 +1,6 @@
 /* Login page styles */
 .login-layout .ant-layout-content {
-  /* min-height: calc(100vh - 64px); */
+  min-height: calc(100vh - 67px - 64px);
   display: flex;
   justify-content: center;
   align-items: center;

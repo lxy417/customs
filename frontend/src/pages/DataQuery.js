@@ -533,7 +533,7 @@ const DataQuery = () => {
         </Space>
       </div>
       
-      <div style={{ display:"flex",height:"600px"}} >
+      <div style={{ display:"flex", height:"calc(100vh - 200px)" }} >
         <div style={{height: "100%",flex:1,marginRight:16 }} >
           <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
             <Form
@@ -677,7 +677,7 @@ const DataQuery = () => {
                   onChange={handleTableChange}
                   size="middle"
                   bordered
-                  scroll={{ x: 'max-content', y: 480 }}
+                  scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
                 />
               </div> 
             </Spin>

@@ -29,7 +29,7 @@ const Login = () => {
     <Layout className="login-layout">
       
       <Header className="login-header">
-        <Title level={3}>金算平台</Title>
+        <Title level={3}>精算平台</Title>
       </Header>
       <Content className="login-content">
         <Card className="login-card" title={<Title level={4}>用户登录</Title>}>
