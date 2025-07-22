@@ -7,7 +7,6 @@ import { PERMISSIONS } from './utils/permissions';
 import Login from './pages/Login';
 import DataQuery from './pages/DataQuery';
 import UserManagement from './pages/UserManagement';
-import Import from './pages/Import';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Header from './components/Header';
@@ -18,7 +17,6 @@ const { Content, Footer } = Layout;
 
 function App() {
   const { isAuthenticated } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
   const routeLocation = useLocation();
   const isLoginPage = routeLocation.pathname === '/login';
 
