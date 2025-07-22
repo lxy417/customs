@@ -61,23 +61,20 @@ function App() {
   const routeLocation = useLocation();
   const isLoginPage = routeLocation.pathname === '/login';
 
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
-  };
 
   return (
     
       <Layout className="site-layout" style={{ minHeight: '100vh' }}>
-        {isAuthenticated && <Header toggleSidebar={toggleSidebar} />}
+        {isAuthenticated && <Header />}
         <Content className={`content-container ${isAuthenticated && !isLoginPage ? 'content-authenticated' : 'content-unauthenticated'}`}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/data-query" element={<PrivateRoute element={<DataQuery />} />} />
             <Route path="/user-management" element={<AdminRoute element={<UserManagement />} />} />
-            <Route path="/import" element={<AdminRoute element={<Import />} />} />
+            {/* <Route path="/import" element={<AdminRoute element={<Import />} />} /> */}
             <Route path="/home" element={<PrivateRoute element={<Home />} />} />
             <Route path="/" element={<Navigate to="/home" replace />} />
-             <Route path="/enhanced-import" element={<AdminRoute element={<EnhancedImport />} />} />
+             <Route path="/import" element={<AdminRoute element={<EnhancedImport />} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Content>
