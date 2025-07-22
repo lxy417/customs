@@ -6,6 +6,13 @@ from app.config.settings import settings
 from .auth import get_current_user
 from app.services.user_service import UserInDB, UserService
 from app.services.data_service import DataService, CustomsDataCreate, CustomsDataUpdate
+from app.utils.permissions import (
+    require_permissions, 
+    require_admin, 
+    require_data_access, 
+    require_customs_code_access,
+    Permissions
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,13 +23,12 @@ data_service = DataService()
 user_service = UserService()  # 添加用户服务实例
 
 @router.post("/", response_model=Dict[str, Any], tags=["数据管理"])
-def create_customs_data(
+@require_permissions([Permissions.DATA_CREATE])
+async def create_customs_data(
     data: CustomsDataCreate = Body(...),
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """创建海关数据（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    """创建海关数据（需要数据创建权限）"""
     try:
         return data_service.create_customs_data(data.dict())
     except Exception as e:
@@ -30,14 +36,13 @@ def create_customs_data(
         raise HTTPException(status_code=500, detail=f"创建海关数据失败: {str(e)}")
 
 @router.put("/{data_id}", response_model=Dict[str, Any], tags=["数据管理"])
-def update_customs_data(
+@require_permissions([Permissions.DATA_UPDATE])
+async def update_customs_data(
     data_id: str,
     data: CustomsDataUpdate = Body(...),
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """更新海关数据（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    """更新海关数据（需要数据更新权限）"""
     try:
         return data_service.update_customs_data(data_id, data.dict(exclude_unset=True))
     except Exception as e:
@@ -45,13 +50,12 @@ def update_customs_data(
         raise HTTPException(status_code=500, detail=f"更新海关数据失败: {str(e)}")
 
 @router.delete("/{data_id}", response_model=Dict[str, Any], tags=["数据管理"])
-def delete_customs_data(
+@require_permissions([Permissions.DATA_DELETE])
+async def delete_customs_data(
     data_id: str,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """删除海关数据（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    """删除海关数据（需要数据删除权限）"""
     try:
         return data_service.delete_customs_data(data_id)
     except Exception as e:
@@ -59,13 +63,12 @@ def delete_customs_data(
         raise HTTPException(status_code=500, detail=f"删除海关数据失败: {str(e)}")
 
 @router.post("/bulk-delete-by-condition", response_model=Dict[str, Any], tags=["数据管理"])
-def bulk_delete_by_condition(
+@require_admin()
+async def bulk_delete_by_condition(
     query_params: Dict[str, Any] = Body(..., embed=True),
     current_user: UserInDB = Depends(get_current_user)
 ):
     """按条件批量删除海关数据（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="无权限执行此操作")
     try:
         return data_service.bulk_delete_by_condition(query_params)
     except Exception as e:
@@ -73,13 +76,12 @@ def bulk_delete_by_condition(
         raise HTTPException(status_code=500, detail=f"按条件批量删除海关数据失败: {str(e)}")
 
 @router.post("/bulk-delete", response_model=Dict[str, Any], tags=["数据管理"])
-def bulk_delete_customs_data(
+@require_permissions([Permissions.DATA_DELETE])
+async def bulk_delete_customs_data(
     data_ids: List[str] = Body(..., embed=True),
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """批量删除海关数据（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    """批量删除海关数据（需要数据删除权限）"""
     try:
         return data_service.bulk_delete_customs_data(data_ids)
     except Exception as e:
@@ -87,21 +89,28 @@ def bulk_delete_customs_data(
         raise HTTPException(status_code=500, detail=f"批量删除海关数据失败: {str(e)}")
 
 @router.post("/export", response_model=Dict[str , Any], tags=["数据管理"])
-def export_customs_data(
+@require_permissions([Permissions.DATA_EXPORT])
+@require_data_access()
+async def export_customs_data(
     query_params: Dict[str, Any] = Body(..., embed=True),
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    allowed_customs_codes: Optional[List[str]] = None
 ):
-    """导出海关数据，最多2000条"""
-    # if not current_user.is_admin:
-    #     raise HTTPException(status_code=403, detail="无权限执行此操作")
+    """导出海关数据，最多2000条（需要数据导出权限，自动过滤海关编码）"""
     try:
+        # 如果用户不是管理员，添加海关编码过滤
+        if allowed_customs_codes is not None:
+            query_params['allowed_customs_codes'] = allowed_customs_codes
+        
         return data_service.export_customs_data(query_params)
     except Exception as e:
         logger.error(f"数据导出失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"数据导出失败: {str(e)}")
 
 @router.get("/search", response_model=Dict[str, Any], tags=["数据查询"])
-def search_customs_data(
+@require_permissions([Permissions.DATA_VIEW])
+@require_data_access()
+async def search_customs_data(
     current_user: UserInDB = Depends(get_current_user),
     customs_code: Optional[str] = Query(None, description="海关编码"),
     import_country: Optional[str] = Query(None, description="进口国家"),
@@ -115,9 +124,10 @@ def search_customs_data(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
     sort_by: str = Query("日期", description="排序字段"),
-    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="排序方式 (asc/desc)")
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="排序方式 (asc/desc)"),
+    allowed_customs_codes: Optional[List[str]] = None
 ):
-    """查询海关数据，支持多条件过滤、分页、排序和模糊查询"""
+    """查询海关数据，支持多条件过滤、分页、排序和模糊查询（需要数据查看权限，自动过滤海关编码）"""
     # 构建查询参数
     query_params = {
         'customs_code': customs_code,
@@ -135,11 +145,9 @@ def search_customs_data(
         'sort_order': sort_order
     }
     
-    # 修复：使用用户服务获取完整的海关编码权限（包括用户组权限）
-    if not current_user.is_admin:
-        allowed_customs_codes = user_service.get_user_customs_codes(current_user.username)
-        if allowed_customs_codes:  # 如果有限制，则应用过滤
-            query_params['allowed_customs_codes'] = allowed_customs_codes
+    # 如果用户不是管理员，添加海关编码过滤
+    if allowed_customs_codes is not None:
+        query_params['allowed_customs_codes'] = allowed_customs_codes
     
     try:
         return data_service.search_customs_data_with_fuzzy(query_params)
@@ -148,12 +156,13 @@ def search_customs_data(
         raise HTTPException(status_code=500, detail=f"数据查询失败: {str(e)}")
 
 @router.get("/importers/suggestions", response_model=List[str], tags=["数据查询"])
-def get_importers_suggestions(
+@require_permissions([Permissions.DATA_VIEW])
+async def get_importers_suggestions(
     query: str = Query(..., description="查询关键词"),
     limit: int = Query(10, ge=1, le=50, description="返回结果数量限制"),
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """获取进口商建议列表（用于自动完成）"""
+    """获取进口商建议列表（用于自动完成，需要数据查看权限）"""
     try:
         return data_service.get_importers_suggestions(query, limit)
     except Exception as e:
@@ -161,12 +170,13 @@ def get_importers_suggestions(
         raise HTTPException(status_code=500, detail=f"获取进口商建议失败: {str(e)}")
 
 @router.get("/exporters/suggestions", response_model=List[str], tags=["数据查询"])
-def get_exporters_suggestions(
+@require_permissions([Permissions.DATA_VIEW])
+async def get_exporters_suggestions(
     query: str = Query(..., description="查询关键词"),
     limit: int = Query(10, ge=1, le=50, description="返回结果数量限制"),
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """获取出口商建议列表（用于自动完成）"""
+    """获取出口商建议列表（用于自动完成，需要数据查看权限）"""
     try:
         return data_service.get_exporters_suggestions(query, limit)
     except Exception as e:
@@ -174,8 +184,13 @@ def get_exporters_suggestions(
         raise HTTPException(status_code=500, detail=f"获取出口商建议失败: {str(e)}")
 
 @router.get("/customs-codes", response_model=List[str], tags=["数据查询"])
-def get_all_customs_codes(current_user: UserInDB = Depends(get_current_user)):
-    """获取所有可用的海关编码列表"""
+@require_permissions([Permissions.DATA_VIEW])
+@require_data_access()
+async def get_all_customs_codes(
+    current_user: UserInDB = Depends(get_current_user),
+    allowed_customs_codes: Optional[List[str]] = None
+):
+    """获取所有可用的海关编码列表（需要数据查看权限，自动过滤海关编码）"""
     try:
         # 构建聚合查询
         aggs_query = {
@@ -191,13 +206,11 @@ def get_all_customs_codes(current_user: UserInDB = Depends(get_current_user)):
             }
         }
         
-        # 修复：使用用户服务获取完整的海关编码权限（包括用户组权限）
-        if not current_user.is_admin:
-            allowed_customs_codes = user_service.get_user_customs_codes(current_user.username)
-            if allowed_customs_codes:  # 如果有限制，则应用过滤
-                aggs_query["query"] = {
-                    "terms": {"海关编码": allowed_customs_codes}
-                }
+        # 如果用户不是管理员，添加海关编码过滤
+        if allowed_customs_codes is not None:
+            aggs_query["query"] = {
+                "terms": {"海关编码": allowed_customs_codes}
+            }
         
         response = es_client.search(index=index_name, body=aggs_query)
         
@@ -210,8 +223,13 @@ def get_all_customs_codes(current_user: UserInDB = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"获取海关编码列表失败: {str(e)}")
 
 @router.get("/countries", response_model=Dict[str, List[str]], tags=["数据查询"])
-def get_all_countries(current_user: UserInDB = Depends(get_current_user)):
-    """获取所有可用的进口国家和出口国家列表"""
+@require_permissions([Permissions.DATA_VIEW])
+@require_data_access()
+async def get_all_countries(
+    current_user: UserInDB = Depends(get_current_user),
+    allowed_customs_codes: Optional[List[str]] = None
+):
+    """获取所有可用的进口国家和出口国家列表（需要数据查看权限，自动过滤海关编码）"""
     try:
         # 构建聚合查询
         aggs_query = {
@@ -234,13 +252,11 @@ def get_all_countries(current_user: UserInDB = Depends(get_current_user)):
             }
         }
         
-        # 修复：使用用户服务获取完整的海关编码权限（包括用户组权限）
-        if not current_user.is_admin:
-            allowed_customs_codes = user_service.get_user_customs_codes(current_user.username)
-            if allowed_customs_codes:  # 如果有限制，则应用过滤
-                aggs_query["query"] = {
-                    "terms": {"海关编码": allowed_customs_codes}
-                }
+        # 如果用户不是管理员，添加海关编码过滤
+        if allowed_customs_codes is not None:
+            aggs_query["query"] = {
+                "terms": {"海关编码": allowed_customs_codes}
+            }
         
         response = es_client.search(index=index_name, body=aggs_query)
         
