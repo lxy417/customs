@@ -25,8 +25,11 @@ function App() {
       {isAuthenticated && <Header />}
       <Content className={`content-container ${isAuthenticated && !isLoginPage ? 'content-authenticated' : 'content-unauthenticated'}`}>
         <Routes>
-          {/* 登录页面 - 无需权限 */}
-          <Route path="/login" element={<Login />} />
+          {/* 登录页面 - 如果已登录则重定向到首页 */}
+          <Route 
+            path="/login" 
+            element={isAuthenticated ? <Navigate to="/home" replace /> : <Login />} 
+          />
           
           {/* 首页 - 需要登录但无特殊权限要求 */}
           <Route 

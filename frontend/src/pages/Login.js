@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Form, Input, Button, Card, Space, Typography, Layout } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,17 +12,10 @@ const Login = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loading, isAuthenticated } = useAuth();
+  const { login, loading } = useAuth();
 
-  // 获取登录前的位置，默认为首页
+  // 获取登录前的位置，默认为数据查询页
   const from = location.state?.from?.pathname || '/home';
-
-  // 检查用户是否已登录，如果已登录则跳转到首页
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/home', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (values) => {
     const success = await login(values.username, values.password);
