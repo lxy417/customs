@@ -18,7 +18,9 @@ const Login = () => {
   const from = location.state?.from?.pathname || '/home';
 
   const handleSubmit = async (values) => {
+    debugger
     const success = await login(values.username, values.password);
+    debugger
     if (success) {
       navigate(from, { replace: true });
     }

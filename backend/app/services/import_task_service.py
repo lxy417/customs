@@ -26,6 +26,8 @@ class ImportTaskService:
                         "total_files": {"type": "integer"},
                         "success_count": {"type": "integer"},
                         "failed_count": {"type": "integer"},
+                        "duplicate_count": {"type": "integer"},  # 新增重复记录数
+                        "original_total_count": {"type": "integer"},  # 新增原文件总记录数
                         "total_count": {"type": "integer"},
                         "customs_codes": {"type": "keyword"},
                         "start_date": {"type": "date"},
@@ -59,6 +61,8 @@ class ImportTaskService:
             "total_files": total_files,
             "success_count": 0,
             "failed_count": 0,
+            "duplicate_count": 0,  # 新增重复记录数
+            "original_total_count": 0,  # 新增原文件总记录数
             "total_count": 0,
             "created_at": datetime.now().isoformat(),
             "processing_options": processing_options or {}
@@ -80,6 +84,7 @@ class ImportTaskService:
         success_count: Optional[int] = None,
         failed_count: Optional[int] = None,
         duplicate_count: Optional[int] = None,
+        original_total_count: Optional[int] = None,  # 新增原文件总记录数参数
         customs_codes: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -105,6 +110,9 @@ class ImportTaskService:
                 
             if duplicate_count is not None:
                 update_doc['duplicate_count'] = duplicate_count
+            
+            if original_total_count is not None:  # 新增原文件总记录数更新
+                update_doc['original_total_count'] = original_total_count
             
             if customs_codes:
                 update_doc['customs_codes'] = customs_codes

@@ -34,6 +34,7 @@ async def process_files_background(
         total_success = 0
         total_failed = 0
         total_duplicates = 0
+        original_total = 0  # 新增原文件总记录数
         processed_files = []
         customs_codes = set()
         all_dates = []
@@ -55,11 +56,15 @@ async def process_files_background(
                 if not result['success']:
                     raise Exception(result.get('error', '文件处理失败'))
                 
+                # 累加原文件总记录数
+                original_total += result.get('total_records', 0)
+                
                 # 导入到数据库
                 file_success = 0
                 file_failed = 0
                 file_duplicates = 0
                 file_errors = []
+                file_original_total = result.get('total_records', 0)  # 单个文件的原始记录数
                 
                 for output_file in result['output_files']:
                     import_result = await processor.import_to_database(
@@ -101,6 +106,7 @@ async def process_files_background(
                     'success_count': file_success,
                     'failed_count': file_failed,
                     'duplicate_count': file_duplicates,
+                    'original_total_count': file_original_total,  # 新增原文件记录数
                     'output_files': result['output_files'],
                     'errors': file_errors[:3]  # 只保留前3个错误
                 })
@@ -112,6 +118,7 @@ async def process_files_background(
                     'success_count': 0,
                     'failed_count': 1,
                     'duplicate_count': 0,
+                    'original_total_count': 0,  # 新增原文件记录数
                     'error': str(e)
                 })
                 total_failed += 1
@@ -135,6 +142,7 @@ async def process_files_background(
             success_count=total_success,
             failed_count=total_failed,
             duplicate_count=total_duplicates,
+            original_total_count=original_total,  # 新增原文件总记录数
             customs_codes=list(customs_codes),
             start_date=start_date,
             end_date=end_date,
@@ -142,7 +150,7 @@ async def process_files_background(
             error_details=all_errors[:10]  # 只保留前10个错误
         )
         
-        logger.info(f"任务完成: {task_id}, 成功: {total_success}, 失败: {total_failed}, 重复: {total_duplicates}")
+        logger.info(f"任务完成: {task_id}, 成功: {total_success}, 失败: {total_failed}, 重复: {total_duplicates}, 原始总数: {original_total}")
         
     except Exception as e:
         logger.error(f"后台任务失败: {task_id}, {str(e)}")

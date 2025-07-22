@@ -14,7 +14,6 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    debugger
     console.log('=== 发送请求详情 ===');
     console.log('请求URL:', config.baseURL + config.url);
     console.log('请求方法:', config.method);
@@ -36,6 +35,7 @@ api.interceptors.request.use(
 );
 
 // 响应拦截器
+// 响应拦截器
 api.interceptors.response.use(
   (response) => {
     console.log('=== 收到响应详情 ===');
@@ -55,6 +55,8 @@ api.interceptors.response.use(
     console.error('响应状态:', error.response?.status);
     console.error('===================');
     const status = error.response?.status;
+    const requestUrl = error.config?.url;
+    
     let errorMsg = '操作失败，请重试';
     if (error.response?.data) {
       if (Array.isArray(error.response.data.detail)) {
@@ -66,17 +68,27 @@ api.interceptors.response.use(
       }
     }
 
-    // 处理401未授权错误
+    // 处理401未授权错误 - 区分登录失败和token过期
     if (status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-      message.error('登录已过期，请重新登录');
+      // 如果是登录接口的401错误，不要重定向，让登录组件处理
+      if (requestUrl && requestUrl.includes('/login')) {
+        // 登录失败，不做任何额外处理，让AuthContext处理错误消息
+        console.log('登录失败，由登录组件处理');
+      } else {
+        // 其他接口的401错误，说明token过期，需要重定向到登录页
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        message.error('登录已过期，请重新登录');
+      }
     } else if (status === 403) {
       message.error('没有权限执行此操作');
     } else if (status === 500) {
       message.error('服务器内部错误，请稍后再试');
     } else {
-      message.error(errorMsg);
+      // 对于登录接口，不在这里显示错误消息，让AuthContext处理
+      if (!(requestUrl && requestUrl.includes('/login'))) {
+        message.error(errorMsg);
+      }
     }
 
     return Promise.reject(error);

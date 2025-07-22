@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       setLoading(true);
+      debugger
       const response = await authAPI.login(username, password);
       const { access_token } = response;
       debugger
@@ -46,6 +47,7 @@ export const AuthProvider = ({ children }) => {
       message.success('登录成功');
       return true;
     } catch (error) {
+      debugger
       console.error('登录失败:', error);
       message.error(error.response?.data?.detail || '登录失败，请检查用户名和密码');
       return false;

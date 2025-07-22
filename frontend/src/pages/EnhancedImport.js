@@ -175,6 +175,12 @@ const EnhancedImport = () => {
       ellipsis: true
     },
     {
+      title: '上传用户',  // 新增上传用户列
+      dataIndex: 'user_id',
+      key: 'user_id',
+      width: 100
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
@@ -212,17 +218,20 @@ const EnhancedImport = () => {
       }
     },
     {
-      title: '成功/总数',
-      key: 'success_rate',
-      width: 120,
+      title: '处理结果',  // 修改列标题
+      key: 'processing_result',
+      width: 150,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
-          <Text>{record.success_count || 0} / {record.total_count || 0}</Text>
-          <Progress 
-            percent={record.total_count ? Math.round((record.success_count || 0) / record.total_count * 100) : 0}
-            size="small"
-            showInfo={false}
-          />
+          <Space size={4}>
+            <Text style={{ color: '#52c41a' }}>成功: {record.success_count || 0}</Text>
+          </Space>
+          <Space size={4}>
+            <Text style={{ color: '#faad14' }}>重复: {record.duplicate_count || 0}</Text>
+          </Space>
+          <Space size={4}>
+            <Text style={{ color: '#f5222d' }}>失败: {record.failed_count || 0}</Text>
+          </Space>
         </Space>
       )
     },
@@ -460,9 +469,12 @@ const EnhancedImport = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="原始文件名">{selectedTask.original_filename}</Descriptions.Item>
+              <Descriptions.Item label="上传用户">{selectedTask.user_id}</Descriptions.Item>
               <Descriptions.Item label="处理文件数">{selectedTask.processed_files?.length || 0}</Descriptions.Item>
-              <Descriptions.Item label="成功记录数">{selectedTask.success_count}</Descriptions.Item>
-              <Descriptions.Item label="失败记录数">{selectedTask.failed_count}</Descriptions.Item>
+              <Descriptions.Item label="原文件总数">{selectedTask.original_total_count || 0}</Descriptions.Item>
+              <Descriptions.Item label="成功记录数">{selectedTask.success_count || 0}</Descriptions.Item>
+              <Descriptions.Item label="重复记录数">{selectedTask.duplicate_count || 0}</Descriptions.Item>
+              <Descriptions.Item label="失败记录数">{selectedTask.failed_count || 0}</Descriptions.Item>
               <Descriptions.Item label="创建时间">{moment(selectedTask.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
               <Descriptions.Item label="完成时间">
                 {selectedTask.completed_at ? moment(selectedTask.completed_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
@@ -480,10 +492,14 @@ const EnhancedImport = () => {
                         title={file.filename}
                         description={
                           <Space>
-                            <Badge count={file.success_count} style={{ backgroundColor: '#52c41a' }} />
+                            <Badge count={file.success_count || 0} style={{ backgroundColor: '#52c41a' }} />
                             <span>成功</span>
-                            <Badge count={file.failed_count} style={{ backgroundColor: '#f5222d' }} />
+                            <Badge count={file.duplicate_count || 0} style={{ backgroundColor: '#faad14' }} />
+                            <span>重复</span>
+                            <Badge count={file.failed_count || 0} style={{ backgroundColor: '#f5222d' }} />
                             <span>失败</span>
+                            <Badge count={file.original_total_count || 0} style={{ backgroundColor: '#1890ff' }} />
+                            <span>原文件总数</span>
                           </Space>
                         }
                       />
