@@ -24,12 +24,14 @@ import {
   TeamOutlined
 } from '@ant-design/icons';
 import { groupAPI, userAPI, dataAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
 const GroupManagement = () => {
+  const { user: currentUser } = useAuth(); // 获取当前登录用户信息
   const [groups, setGroups] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -84,6 +86,36 @@ const GroupManagement = () => {
     fetchCustomsCodes();
   }, []);
 
+  // 渲染海关编码权限的函数
+  const renderCustomsCodesPermission = (codes) => {
+    // 检查当前登录用户是否为管理员
+    const isCurrentUserAdmin = currentUser?.is_admin || currentUser?.role_id === 'admin';
+    
+    if (!codes || codes.length === 0) {
+      if (isCurrentUserAdmin) {
+        // 管理员看到的是"无限制"
+        return <span style={{ color: '#999' }}>无限制</span>;
+      } else {
+        // 普通用户看到的是"无"
+        return <span style={{ color: '#999' }}>无</span>;
+      }
+    }
+    
+    // 有具体的海关编码权限
+    return (
+      <div>
+        {codes.slice(0, 3).map(code => (
+          <Tag key={code} color="green" style={{ marginBottom: 4 }}>
+            {code}
+          </Tag>
+        ))}
+        {codes.length > 3 && (
+          <Tag color="default">+{codes.length - 3}个</Tag>
+        )}
+      </div>
+    );
+  };
+
   // 表格列定义
   const columns = [
     {
@@ -106,21 +138,7 @@ const GroupManagement = () => {
       dataIndex: 'allowed_customs_codes',
       key: 'allowed_customs_codes',
       width: 250,
-      render: (codes) => (
-        <div>
-          {codes?.slice(0, 3).map(code => (
-            <Tag key={code} color="green" style={{ marginBottom: 4 }}>
-              {code}
-            </Tag>
-          ))}
-          {codes?.length > 3 && (
-            <Tag color="default">+{codes.length - 3}个</Tag>
-          )}
-          {(!codes || codes.length === 0) && (
-            <span style={{ color: '#999' }}>无限制</span>
-          )}
-        </div>
-      )
+      render: (codes) => renderCustomsCodesPermission(codes)
     },
     {
       title: '创建时间',

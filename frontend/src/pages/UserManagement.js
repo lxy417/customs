@@ -28,6 +28,7 @@ import {
   SafetyOutlined
 } from '@ant-design/icons';
 import { userAPI, dataAPI, groupAPI, roleAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import GroupManagement from '../components/GroupManagement';
 import RoleManagement from '../components/RoleManagement';
 
@@ -37,6 +38,7 @@ const { TextArea } = Input;
 const { TabPane } = Tabs;
 
 const UserManagement = () => {
+  const { user: currentUser } = useAuth(); // 获取当前登录用户信息
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -45,7 +47,7 @@ const UserManagement = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState('create'); // 'create' or 'edit'
   const [form] = Form.useForm();
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentEditUser, setCurrentEditUser] = useState(null);
   const [customsCodes, setCustomsCodes] = useState([]);
 
   // 获取用户列表
@@ -130,24 +132,42 @@ const UserManagement = () => {
   // 显示创建用户模态框
   const showCreateModal = () => {
     setModalType('create');
-    setCurrentUser(null);
+    setCurrentEditUser(null);
     form.resetFields();
     setModalVisible(true);
   };
 
-  // 显示编辑用户模态框
-  const showEditModal = (user) => {
-    setModalType('edit');
-    setCurrentUser(user);
-    form.setFieldsValue({
-      username: user.username,
-      password: '', // 不显示现有密码
-      role_id: user.role_id,
-      additional_permissions: user.additional_permissions || [],
-      allowed_customs_codes: user.allowed_customs_codes,
-      group_ids: user.group_ids || []
-    });
-    setModalVisible(true);
+  // 渲染海关编码权限的函数
+  const renderCustomsCodesPermission = (codes, userRecord) => {
+    // 检查当前登录用户是否为管理员
+    const isCurrentUserAdmin = currentUser?.is_admin || currentUser?.role_id === 'admin';
+    
+    // 检查被显示的用户是否为管理员
+    const isTargetUserAdmin = userRecord?.is_admin || userRecord?.role_id === 'admin';
+    
+    if (isTargetUserAdmin) {
+      // 管理员用户始终显示"无限制"
+      return <Tag color="gold">无限制</Tag>;
+    }
+    
+    if (!codes || codes.length === 0) {
+      // 普通用户没有海关编码权限时显示"无"
+      return <span style={{ color: '#999' }}>无</span>;
+    }
+    
+    // 有具体的海关编码权限
+    return (
+      <div>
+        {codes.slice(0, 3).map(code => (
+          <Tag key={code} color="purple" style={{ marginBottom: 4 }}>
+            {code}
+          </Tag>
+        ))}
+        {codes.length > 3 && (
+          <Tag color="default">+{codes.length - 3}个</Tag>
+        )}
+      </div>
+    );
   };
 
   // 关闭模态框
@@ -156,48 +176,6 @@ const UserManagement = () => {
     form.resetFields();
   };
 
-  // 提交表单（创建或编辑用户）
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      setLoading(true);
-
-      if (modalType === 'create') {
-        // 创建新用户
-        await userAPI.createUser({
-          username: values.username,
-          password: values.password,
-          role_id: values.role_id,
-          additional_permissions: values.additional_permissions || [],
-          allowed_customs_codes: values.allowed_customs_codes || [],
-          group_ids: values.group_ids || []
-        });
-        message.success('用户创建成功');
-      } else {
-        // 编辑现有用户
-        const updateData = {
-          role_id: values.role_id,
-          additional_permissions: values.additional_permissions || [],
-          allowed_customs_codes: values.allowed_customs_codes || [],
-          group_ids: values.group_ids || []
-        };
-        // 只有在提供了新密码时才更新密码
-        if (values.password) {
-          updateData.password = values.password;
-        }
-        await userAPI.updateUser(currentUser.username, updateData);
-        message.success('用户更新成功');
-      }
-
-      setModalVisible(false);
-      fetchUsers(); // 刷新用户列表
-    } catch (error) {
-      console.error(`${modalType === 'create' ? '创建' : '更新'}用户失败:`, error);
-      message.error(error.response?.data?.detail || `${modalType === 'create' ? '创建' : '更新'}用户失败，请重试`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 删除用户
   const handleDelete = async (username) => {
@@ -285,21 +263,7 @@ const UserManagement = () => {
       dataIndex: 'allowed_customs_codes',
       key: 'allowed_customs_codes',
       width: 250,
-      render: (codes) => (
-        <div>
-          {codes?.slice(0, 3).map(code => (
-            <Tag key={code} color="purple" style={{ marginBottom: 4 }}>
-              {code}
-            </Tag>
-          ))}
-          {codes?.length > 3 && (
-            <Tag color="default">+{codes.length - 3}个</Tag>
-          )}
-          {(!codes || codes.length === 0) && (
-            <span style={{ color: '#999' }}>无限制</span>
-          )}
-        </div>
-      )
+      render: (codes, record) => renderCustomsCodesPermission(codes, record)
     },
     {
       title: '创建时间',
@@ -341,6 +305,64 @@ const UserManagement = () => {
       )
     }
   ];
+
+  // 显示编辑用户模态框
+  const showEditModal = (user) => {
+    setModalType('edit');
+    setCurrentEditUser(user);
+    form.setFieldsValue({
+      username: user.username,
+      password: '', // 不显示现有密码
+      role_id: user.role_id,
+      additional_permissions: user.additional_permissions || [],
+      allowed_customs_codes: user.allowed_customs_codes,
+      group_ids: user.group_ids || []
+    });
+    setModalVisible(true);
+  };
+
+  // 提交表单（创建或编辑用户）
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      setLoading(true);
+
+      if (modalType === 'create') {
+        // 创建新用户
+        await userAPI.createUser({
+          username: values.username,
+          password: values.password,
+          role_id: values.role_id,
+          additional_permissions: values.additional_permissions || [],
+          allowed_customs_codes: values.allowed_customs_codes || [],
+          group_ids: values.group_ids || []
+        });
+        message.success('用户创建成功');
+      } else {
+        // 编辑现有用户
+        const updateData = {
+          role_id: values.role_id,
+          additional_permissions: values.additional_permissions || [],
+          allowed_customs_codes: values.allowed_customs_codes || [],
+          group_ids: values.group_ids || []
+        };
+        // 只有在提供了新密码时才更新密码
+        if (values.password) {
+          updateData.password = values.password;
+        }
+        await userAPI.updateUser(currentEditUser.username, updateData);
+        message.success('用户更新成功');
+      }
+
+      setModalVisible(false);
+      fetchUsers(); // 刷新用户列表
+    } catch (error) {
+      console.error(`${modalType === 'create' ? '创建' : '更新'}用户失败:`, error);
+      message.error(error.response?.data?.detail || `${modalType === 'create' ? '创建' : '更新'}用户失败，请重试`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{ padding: '24px' }}>
