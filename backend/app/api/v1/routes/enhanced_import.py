@@ -3,14 +3,16 @@ from typing import Dict, Any, List, Optional
 import os
 import tempfile
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from app.utils.enhanced_data_processor import EnhancedDataProcessor
 from app.services.import_task_service import ImportTaskService
 from app.api.v1.routes.auth import get_current_user
 from app.services.user_service import UserInDB
-import logging
+from app.config.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+# 使用专门的日志器
+logger = get_logger('app.api.v1.routes.enhanced_import')
 router = APIRouter()
 
 # 创建临时目录
@@ -19,7 +21,7 @@ processed_dir = Path("./processed_data")
 processed_dir.mkdir(exist_ok=True)
 
 async def process_files_background(
-    files: List[str], 
+    files: List[Dict[str, str]],  # 修改为包含原始文件名的字典列表
     task_id: str, 
     batch_size: int = 500,
     skip_duplicates: bool = True
@@ -37,15 +39,21 @@ async def process_files_background(
         all_dates = []
         all_errors = []
         
-        for file_path in files:
+        for file_info in files:
+            file_path = file_info['file_path']
+            original_filename = file_info['original_filename']
+            
             try:
-                logger.info(f"处理文件: {file_path}")
+                logger.info(f"处理文件: {original_filename} (路径: {file_path})")
                 
-                # 预处理文件
-                result = await processor.process_excel_file(
+                # 预处理文件 - 移除 await，因为这不是异步方法
+                result = processor.process_excel_file(
                     file_path=file_path,
                     skip_duplicates=skip_duplicates
                 )
+                
+                if not result['success']:
+                    raise Exception(result.get('error', '文件处理失败'))
                 
                 # 导入到数据库
                 file_success = 0
@@ -89,7 +97,7 @@ async def process_files_background(
                         logger.warning(f"收集统计信息失败: {str(e)}")
                 
                 processed_files.append({
-                    'filename': os.path.basename(file_path),
+                    'filename': original_filename,  # 使用原始文件名
                     'success_count': file_success,
                     'failed_count': file_failed,
                     'duplicate_count': file_duplicates,
@@ -98,9 +106,9 @@ async def process_files_background(
                 })
                 
             except Exception as e:
-                logger.error(f"处理文件失败: {file_path}, {str(e)}")
+                logger.error(f"处理文件失败: {original_filename}, {str(e)}")
                 processed_files.append({
-                    'filename': os.path.basename(file_path),
+                    'filename': original_filename,  # 使用原始文件名
                     'success_count': 0,
                     'failed_count': 1,
                     'duplicate_count': 0,
@@ -110,7 +118,7 @@ async def process_files_background(
                 all_errors.append({
                     'error_type': 'FileProcessingError',
                     'error_reason': str(e),
-                    'filename': os.path.basename(file_path)
+                    'filename': original_filename  # 使用原始文件名
                 })
         
         # 计算日期范围
@@ -145,8 +153,9 @@ async def process_files_background(
         )
     finally:
         # 清理临时文件
-        for file_path in files:
+        for file_info in files:
             try:
+                file_path = file_info['file_path']
                 if os.path.exists(file_path):
                     os.remove(file_path)
             except Exception as e:
@@ -175,21 +184,30 @@ async def upload_files(
             )
     
     try:
-        # 保存上传的文件
+        # 保存上传的文件，同时记录原始文件名
         saved_files = []
+        original_filenames = []
+        
         for file in files:
-            file_path = temp_dir / f"{current_user.username}_{file.filename}"
+            # 生成唯一的临时文件名
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+            temp_filename = f"{current_user.username}_{timestamp}_{file.filename}"
+            file_path = temp_dir / temp_filename
             
             with open(file_path, "wb") as buffer:
                 content = await file.read()
                 buffer.write(content)
             
-            saved_files.append(str(file_path))
+            saved_files.append({
+                'file_path': str(file_path),
+                'original_filename': file.filename  # 保存原始文件名
+            })
+            original_filenames.append(file.filename)
         
         # 创建导入任务
         task_service = ImportTaskService()
         task_id = await task_service.create_task(
-            original_filename=f"batch_upload_{len(files)}_files",
+            original_filename=", ".join(original_filenames),  # 使用原始文件名列表
             user_id=current_user.username,
             total_files=len(files),
             processing_options={
@@ -201,7 +219,7 @@ async def upload_files(
         # 启动后台处理任务
         background_tasks.add_task(
             process_files_background,
-            saved_files,
+            saved_files,  # 传递包含原始文件名的字典列表
             task_id,
             batch_size,
             skip_duplicates
@@ -211,7 +229,7 @@ async def upload_files(
             "message": "文件上传成功，开始后台处理",
             "task_id": task_id,
             "file_count": len(files),
-            "files": [file.filename for file in files]
+            "files": original_filenames  # 返回原始文件名列表
         }
         
     except Exception as e:

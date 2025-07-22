@@ -1,9 +1,12 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import logging
+import re
 from app.utils.elasticsearch import ESClient
 from app.config.settings import settings
 from pydantic import BaseModel
+from elasticsearch.helpers import bulk
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -110,69 +113,146 @@ class DataService:
         else:
             logger.info(f"数据索引已存在: {self.index_name}")
 
+
+    def _clean_customs_code(self, code: Any) -> str:
+        """清理海关编码格式"""
+        if pd.isna(code):
+            return ""
+        
+        code_str = str(code)
+        # 移除小数点（如果是整数形式的浮点数）
+        if '.' in code_str and code_str.replace('.', '').isdigit():
+            code_str = str(int(float(code_str)))
+        
+        return code_str
+
+    def _is_valid_value(self, value: Any) -> bool:
+        """检查值是否有效（非空、非NaN）"""
+        if pd.isna(value):
+            return False
+        if value is None:
+            return False
+        if isinstance(value, str) and value.strip() == "":
+            return False
+        return True
+
     def create_customs_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """创建单条海关数据"""
         try:
+            # 清理数据
+            cleaned_data = self._clean_data(data)
+            
             # 添加时间戳
-            data["created_at"] = datetime.utcnow()
-            data["updated_at"] = datetime.utcnow()
+            cleaned_data["created_at"] = datetime.utcnow()
+            cleaned_data["updated_at"] = datetime.utcnow()
 
             response = self.es_client.index(
                 index=self.index_name,
-                document=data
+                document=cleaned_data
             )
 
             logger.info(f"创建海关数据成功: {response['_id']}")
             return {
                 "id": response["_id"],
                 "result": "created",
-                "data": data
+                "data": cleaned_data
             }
         except Exception as e:
             logger.error(f"创建海关数据失败: {str(e)}", exc_info=True)
             raise
 
-    def bulk_create_customs_data(self, data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _clean_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """清理单条数据"""
+        cleaned_data = {}
+        for key, value in data.items():
+            if self._is_valid_value(value):
+                if key == '海关编码':
+                    cleaned_data[key] = self._clean_customs_code(value)
+                else:
+                    cleaned_data[key] = value
+        return cleaned_data
+
+    def bulk_create_customs_data(self, data_list: List[Dict[str, Any]], batch_size: int = 500) -> Dict[str, Any]:
         """批量创建海关数据"""
         try:
-            bulk_operations = []
-            for data in data_list:
-                # 添加时间戳
-                data["created_at"] = datetime.utcnow()
-                data["updated_at"] = datetime.utcnow()
-
-                bulk_operations.append({
-                    "index": {
-                        "_index": self.index_name
-                    }
-                })
-                bulk_operations.append(data)
-
-            if bulk_operations:
-                response = self.es_client.bulk(body=bulk_operations)
-
-                if response.get("errors"):
-                    errors = [item for item in response["items"] if item.get("index", {}).get("error")]
-                    logger.error(f"批量创建海关数据部分失败: {len(errors)}条数据出错")
-                    return {
-                        "result": "partial_failure",
-                        "total": len(data_list),
-                        "success": len(data_list) - len(errors),
-                        "failed": len(errors),
-                        "errors": errors
-                    }
-
-                logger.info(f"批量创建海关数据成功: {len(data_list)}条")
+            if not data_list:
                 return {
                     "result": "success",
-                    "total": len(data_list),
-                    "success": len(data_list)
+                    "total": 0,
+                    "success": 0,
+                    "failed": 0,
+                    "errors": []
                 }
-            return {
-                "result": "success",
-                "total": 0,
-                "success": 0
-            }
+
+            # 准备批量操作
+            actions = []
+            for data in data_list:
+                # 清理数据
+                cleaned_data = self._clean_data(data)
+                
+                # 添加时间戳
+                cleaned_data["created_at"] = datetime.utcnow()
+                cleaned_data["updated_at"] = datetime.utcnow()
+
+                action = {
+                    '_op_type': 'index',
+                    '_index': self.index_name,
+                    '_source': cleaned_data
+                }
+                
+                # 如果数据中有_es_id，使用它作为文档ID
+                if '_es_id' in data:
+                    action['_id'] = data['_es_id']
+                
+                actions.append(action)
+
+            # 执行批量操作
+            success_count = 0
+            failed_count = 0
+            errors = []
+
+            try:
+                success, failed = bulk(
+                    self.es_client,
+                    actions,
+                    chunk_size=batch_size,
+                    raise_on_error=False,
+                    stats_only=False
+                )
+                success_count = success
+                failed_count = len(failed) if failed else 0
+                
+                if failed:
+                    for error_item in failed[:10]:  # 只记录前10个错误
+                        error_info = error_item.get('index', {})
+                        error_detail = error_info.get('error', {})
+                        errors.append({
+                            'error_type': error_detail.get('type', 'unknown'),
+                            'error_reason': error_detail.get('reason', 'unknown'),
+                            'document_id': error_info.get('_id', 'unknown')
+                        })
+
+                logger.info(f"批量创建海关数据完成: 成功 {success_count}, 失败 {failed_count}")
+                
+                result = "success" if failed_count == 0 else "partial_failure"
+                return {
+                    "result": result,
+                    "total": len(data_list),
+                    "success": success_count,
+                    "failed": failed_count,
+                    "errors": errors
+                }
+                
+            except Exception as e:
+                logger.error(f"批量创建海关数据失败: {str(e)}")
+                return {
+                    "result": "failure",
+                    "total": len(data_list),
+                    "success": 0,
+                    "failed": len(data_list),
+                    "errors": [{'error_type': 'BulkImportError', 'error_reason': str(e)}]
+                }
+                
         except Exception as e:
             logger.error(f"批量创建海关数据失败: {str(e)}", exc_info=True)
             raise
@@ -196,14 +276,17 @@ class DataService:
     def update_customs_data(self, data_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """更新海关数据"""
         try:
+            # 清理数据
+            cleaned_data = self._clean_data(data)
+            
             # 添加更新时间戳
-            data["updated_at"] = datetime.utcnow()
+            cleaned_data["updated_at"] = datetime.utcnow()
 
             response = self.es_client.update(
                 index=self.index_name,
                 id=data_id,
-                doc=data,
-                refresh="wait_for" 
+                doc=cleaned_data,
+                refresh=True  # 修复：使用布尔值而不是字符串
             )
 
             logger.info(f"更新海关数据成功: {data_id}")
@@ -221,7 +304,7 @@ class DataService:
             response = self.es_client.delete(
                 index=self.index_name,
                 id=data_id,
-                refresh="wait_for" 
+                refresh=True  # 修复：使用布尔值而不是字符串
             )
 
             logger.info(f"删除海关数据成功: {data_id}")
@@ -272,7 +355,7 @@ class DataService:
                 index=self.index_name,
                 query=query_body,
                 conflicts="proceed",
-                refresh="wait_for" 
+                refresh=True  # 修复：使用布尔值而不是字符串
             )
 
             logger.info(f"按条件批量删除海关数据成功: {response['deleted']}条记录")
@@ -287,40 +370,69 @@ class DataService:
     def bulk_delete_customs_data(self, data_ids: List[str]) -> Dict[str, Any]:
         """批量删除海关数据"""
         try:
-            bulk_operations = []
-            for data_id in data_ids:
-                bulk_operations.append({
-                    "delete": {
-                        "_index": self.index_name,
-                        "_id": data_id
-                    }
-                })
-
-            if bulk_operations:
-                response = self.es_client.bulk(body=bulk_operations)
-
-                if response.get("errors"):
-                    errors = [item for item in response["items"] if item.get("delete", {}).get("error")]
-                    logger.error(f"批量删除海关数据部分失败: {len(errors)}条数据出错")
-                    return {
-                        "result": "partial_failure",
-                        "total": len(data_ids),
-                        "success": len(data_ids) - len(errors),
-                        "failed": len(errors),
-                        "errors": errors
-                    }
-
-                logger.info(f"批量删除海关数据成功: {len(data_ids)}条")
+            if not data_ids:
                 return {
                     "result": "success",
-                    "total": len(data_ids),
-                    "success": len(data_ids)
+                    "total": 0,
+                    "success": 0,
+                    "failed": 0,
+                    "errors": []
                 }
-            return {
-                "result": "success",
-                "total": 0,
-                "success": 0
-            }
+
+            actions = []
+            for data_id in data_ids:
+                actions.append({
+                    '_op_type': 'delete',
+                    '_index': self.index_name,
+                    '_id': data_id
+                })
+
+            success_count = 0
+            failed_count = 0
+            errors = []
+
+            try:
+                success, failed = bulk(
+                    self.es_client,
+                    actions,
+                    chunk_size=500,
+                    raise_on_error=False,
+                    stats_only=False
+                )
+                success_count = success
+                failed_count = len(failed) if failed else 0
+                
+                if failed:
+                    for error_item in failed[:10]:  # 只记录前10个错误
+                        error_info = error_item.get('delete', {})
+                        error_detail = error_info.get('error', {})
+                        errors.append({
+                            'error_type': error_detail.get('type', 'unknown'),
+                            'error_reason': error_detail.get('reason', 'unknown'),
+                            'document_id': error_info.get('_id', 'unknown')
+                        })
+
+                logger.info(f"批量删除海关数据完成: 成功 {success_count}, 失败 {failed_count}")
+                
+                result = "success" if failed_count == 0 else "partial_failure"
+                return {
+                    "result": result,
+                    "total": len(data_ids),
+                    "success": success_count,
+                    "failed": failed_count,
+                    "errors": errors
+                }
+                
+            except Exception as e:
+                logger.error(f"批量删除海关数据失败: {str(e)}")
+                return {
+                    "result": "failure",
+                    "total": len(data_ids),
+                    "success": 0,
+                    "failed": len(data_ids),
+                    "errors": [{'error_type': 'BulkDeleteError', 'error_reason': str(e)}]
+                }
+                
         except Exception as e:
             logger.error(f"批量删除海关数据失败: {str(e)}", exc_info=True)
             raise
@@ -364,7 +476,16 @@ class DataService:
             # 处理排序
             sort_by = query_params.get('sort_by', '日期')
             sort_order = query_params.get('sort_order', 'desc')
-            sort = [{sort_by: {"order": sort_order}}]
+            
+            # 定义需要使用keyword子字段进行排序的text类型字段
+            text_fields_with_keyword = ['编码产品描述', '详细产品名称']
+            
+            if sort_by in text_fields_with_keyword:
+                sort_field = f"{sort_by}.keyword"
+            else:
+                sort_field = sort_by
+                
+            sort = [{sort_field: {"order": sort_order}}]
 
             # 执行查询，限制最多2000条
             response = self.es_client.search(
@@ -528,72 +649,214 @@ class DataService:
             logger.error(f"模糊查询失败: {str(e)}", exc_info=True)
             raise
 
-    def get_importers_suggestions(self, query: str, limit: int = 10) -> List[str]:
-        """获取进口商建议列表（用于自动完成）"""
+    def get_importers_suggestions(self, query: str, size: int = 10) -> List[str]:
+        """获取进口商建议"""
         try:
-            aggs_query = {
-                "size": 0,
-                "query": {
+            response = self.es_client.search(
+                index=self.index_name,
+                query={
                     "bool": {
                         "should": [
                             {"wildcard": {"进口商": f"*{query}*"}},
                             {"match": {"进口商.text": {"query": query, "fuzziness": "AUTO"}}}
-                        ],
-                        "minimum_should_match": 1
+                        ]
                     }
                 },
-                "aggs": {
+                aggs={
                     "importers": {
                         "terms": {
                             "field": "进口商",
-                            "size": limit,
-                            "order": {"_count": "desc"}
+                            "size": size,
+                            "include": f".*{query}.*"
                         }
                     }
-                }
-            }
+                },
+                size=0
+            )
             
-            response = self.es_client.search(index=self.index_name, body=aggs_query)
+            suggestions = []
+            if "aggregations" in response and "importers" in response["aggregations"]:
+                for bucket in response["aggregations"]["importers"]["buckets"]:
+                    suggestions.append(bucket["key"])
             
-            # 提取进口商列表
-            importers = [bucket["key"] for bucket in response["aggregations"]["importers"]["buckets"]]
-            
-            return importers
+            return suggestions
         except Exception as e:
             logger.error(f"获取进口商建议失败: {str(e)}", exc_info=True)
             raise
 
-    def get_exporters_suggestions(self, query: str, limit: int = 10) -> List[str]:
-        """获取出口商建议列表（用于自动完成）"""
+    def get_exporters_suggestions(self, query: str, size: int = 10) -> List[str]:
+        """获取出口商建议"""
         try:
-            aggs_query = {
-                "size": 0,
-                "query": {
+            response = self.es_client.search(
+                index=self.index_name,
+                query={
                     "bool": {
                         "should": [
                             {"wildcard": {"出口商": f"*{query}*"}},
                             {"match": {"出口商.text": {"query": query, "fuzziness": "AUTO"}}}
-                        ],
-                        "minimum_should_match": 1
+                        ]
                     }
                 },
-                "aggs": {
+                aggs={
                     "exporters": {
                         "terms": {
                             "field": "出口商",
-                            "size": limit,
-                            "order": {"_count": "desc"}
+                            "size": size,
+                            "include": f".*{query}.*"
                         }
                     }
-                }
-            }
+                },
+                size=0
+            )
             
-            response = self.es_client.search(index=self.index_name, body=aggs_query)
+            suggestions = []
+            if "aggregations" in response and "exporters" in response["aggregations"]:
+                for bucket in response["aggregations"]["exporters"]["buckets"]:
+                    suggestions.append(bucket["key"])
             
-            # 提取出口商列表
-            exporters = [bucket["key"] for bucket in response["aggregations"]["exporters"]["buckets"]]
-            
-            return exporters
+            return suggestions
         except Exception as e:
             logger.error(f"获取出口商建议失败: {str(e)}", exc_info=True)
             raise
+
+    def get_customs_codes(self, page: int = 1, page_size: int = 50, search: Optional[str] = None) -> Dict[str, Any]:
+        """获取海关编码列表"""
+        try:
+            query = {"match_all": {}}
+            if search:
+                query = {
+                    "bool": {
+                        "should": [
+                            {"wildcard": {"海关编码": f"*{search}*"}},
+                            {"wildcard": {"编码产品描述": f"*{search}*"}}
+                        ]
+                    }
+                }
+
+            from_index = (page - 1) * page_size
+            
+            response = self.es_client.search(
+                index=self.index_name,
+                query=query,
+                aggs={
+                    "customs_codes": {
+                        "terms": {
+                            "field": "海关编码",
+                            "size": 10000  # 获取所有唯一的海关编码
+                        },
+                        "aggs": {
+                            "description": {
+                                "terms": {
+                                    "field": "编码产品描述.keyword",
+                                    "size": 1
+                                }
+                            }
+                        }
+                    }
+                },
+                size=0
+            )
+            
+            codes_data = []
+            if "aggregations" in response and "customs_codes" in response["aggregations"]:
+                for bucket in response["aggregations"]["customs_codes"]["buckets"]:
+                    code = bucket["key"]
+                    description = ""
+                    if bucket["description"]["buckets"]:
+                        description = bucket["description"]["buckets"][0]["key"]
+                    
+                    if not search or search in code or search in description:
+                        codes_data.append({
+                            "code": code,
+                            "description": description,
+                            "count": bucket["doc_count"]
+                        })
+            
+            # 手动分页
+            total = len(codes_data)
+            start = from_index
+            end = start + page_size
+            paginated_data = codes_data[start:end]
+            
+            return {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size,
+                "data": paginated_data
+            }
+        except Exception as e:
+            logger.error(f"获取海关编码列表失败: {str(e)}", exc_info=True)
+            raise
+
+    def get_countries(self, field: str = "进口商所在国家") -> List[str]:
+        """获取国家列表"""
+        try:
+            if field not in ["进口商所在国家", "出口商所在国家"]:
+                field = "进口商所在国家"
+                
+            response = self.es_client.search(
+                index=self.index_name,
+                aggs={
+                    "countries": {
+                        "terms": {
+                            "field": field,
+                            "size": 1000
+                        }
+                    }
+                },
+                size=0
+            )
+            
+            countries = []
+            if "aggregations" in response and "countries" in response["aggregations"]:
+                for bucket in response["aggregations"]["countries"]["buckets"]:
+                    countries.append(bucket["key"])
+            
+            return sorted(countries)
+        except Exception as e:
+            logger.error(f"获取国家列表失败: {str(e)}", exc_info=True)
+            raise
+
+    def check_duplicates_by_ids(self, document_ids: List[str]) -> Dict[str, Any]:
+        """通过文档ID批量检查重复"""
+        try:
+            if not document_ids:
+                return {"existing_ids": [], "new_ids": []}
+            
+            # 使用mget批量检查文档是否存在
+            response = self.es_client.mget(
+                index=self.index_name,
+                ids=document_ids,
+                _source=False  # 只检查存在性，不需要返回文档内容
+            )
+            
+            existing_ids = []
+            new_ids = []
+            
+            for doc in response['docs']:
+                doc_id = doc['_id']
+                if doc['found']:
+                    existing_ids.append(doc_id)
+                else:
+                    new_ids.append(doc_id)
+            
+            return {
+                "existing_ids": existing_ids,
+                "new_ids": new_ids,
+                "total_checked": len(document_ids),
+                "existing_count": len(existing_ids),
+                "new_count": len(new_ids)
+            }
+            
+        except Exception as e:
+            logger.error(f"批量检查文档存在性失败: {str(e)}")
+            # 如果检查失败，将所有ID视为新的
+            return {
+                "existing_ids": [],
+                "new_ids": document_ids,
+                "total_checked": len(document_ids),
+                "existing_count": 0,
+                "new_count": len(document_ids),
+                "error": str(e)
+            }
