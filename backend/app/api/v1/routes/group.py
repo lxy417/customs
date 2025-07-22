@@ -15,9 +15,12 @@ def create_group(
     group_create: GroupCreate,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """创建用户组（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="无权限执行此操作")
+    """创建用户组（需要用户组管理权限）"""
+    # 检查权限
+    user_permissions = user_service.get_user_permissions(current_user.username)
+    if "group_manage" not in user_permissions:
+        raise HTTPException(status_code=403, detail="缺少用户组管理权限")
+    
     try:
         return group_service.create_group(group_create)
     except ValueError as e:
@@ -32,12 +35,11 @@ def update_group(
     group_update: GroupUpdate,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """更新用户组信息（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限更新用户组，需要管理员权限"
-        )
+    """更新用户组信息（需要用户组管理权限）"""
+    # 检查权限
+    user_permissions = user_service.get_user_permissions(current_user.username)
+    if "group_manage" not in user_permissions:
+        raise HTTPException(status_code=403, detail="缺少用户组管理权限")
     
     try:
         group = group_service.update_group(group_id, group_update)
@@ -59,12 +61,11 @@ def delete_group(
     group_id: str,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """删除用户组（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限删除用户组，需要管理员权限"
-        )
+    """删除用户组（需要用户组管理权限）"""
+    # 检查权限
+    user_permissions = user_service.get_user_permissions(current_user.username)
+    if "group_manage" not in user_permissions:
+        raise HTTPException(status_code=403, detail="缺少用户组管理权限")
     
     try:
         success = group_service.delete_group(group_id)
@@ -80,12 +81,12 @@ def delete_group(
 
 @router.get("/", response_model=List[Dict[str, Any]], tags=["用户组管理"])
 def list_groups(current_user: UserInDB = Depends(get_current_user)):
-    """列出所有用户组（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限查看用户组列表，需要管理员权限"
-        )
+    """列出所有用户组（需要用户组管理权限）"""
+    # 检查权限
+    user_permissions = user_service.get_user_permissions(current_user.username)
+    if "group_manage" not in user_permissions:
+        raise HTTPException(status_code=403, detail="缺少用户组管理权限")
+    
     return group_service.list_groups()
 
 @router.get("/{group_id}", response_model=Dict[str, Any], tags=["用户组管理"])
@@ -93,12 +94,11 @@ def get_group(
     group_id: str,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """获取用户组详情（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限查看用户组信息"
-        )
+    """获取用户组详情（需要用户组管理权限）"""
+    # 检查权限
+    user_permissions = user_service.get_user_permissions(current_user.username)
+    if "group_manage" not in user_permissions:
+        raise HTTPException(status_code=403, detail="缺少用户组管理权限")
     
     group = group_service.get_group_by_id(group_id)
     if not group:
@@ -112,20 +112,17 @@ def get_group(
     
     return group_dict
 
-# 移除获取可用权限的端点，因为用户组不再管理功能权限
-
 @router.post("/{group_id}/users/{username}", response_model=Dict[str, Any], tags=["用户组管理"])
 def add_user_to_group(
     group_id: str,
     username: str,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """将用户添加到用户组（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限管理用户组成员"
-        )
+    """将用户添加到用户组（需要用户组管理权限）"""
+    # 检查权限
+    user_permissions = user_service.get_user_permissions(current_user.username)
+    if "group_manage" not in user_permissions:
+        raise HTTPException(status_code=403, detail="缺少用户组管理权限")
     
     # 检查用户组是否存在
     group = group_service.get_group_by_id(group_id)
@@ -161,12 +158,11 @@ def remove_user_from_group(
     username: str,
     current_user: UserInDB = Depends(get_current_user)
 ):
-    """从用户组中移除用户（仅管理员）"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限管理用户组成员"
-        )
+    """从用户组中移除用户（需要用户组管理权限）"""
+    # 检查权限
+    user_permissions = user_service.get_user_permissions(current_user.username)
+    if "group_manage" not in user_permissions:
+        raise HTTPException(status_code=403, detail="缺少用户组管理权限")
     
     # 检查用户是否存在
     user = user_service.get_user_by_username(username)

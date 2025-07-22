@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 from app.services.user_service import UserService, UserCreate, UserUpdate
 from app.api.v1.routes.auth import get_current_user
 from app.services.user_service import UserInDB
+from app.utils.permissions import require_admin, require_permissions
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ def create_user(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """创建新用户（仅管理员）"""
-    if not current_user.is_admin:
+    if current_user.role_id != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限创建用户，需要管理员权限"
@@ -24,8 +25,10 @@ def create_user(
         user = user_service.create_user(user_create)
         return {
             "username": user.username,
-            "is_admin": user.is_admin,
+            "role_id": user.role_id,
             "allowed_customs_codes": user.allowed_customs_codes,
+            "additional_permissions": user.additional_permissions,
+            "group_ids": user.group_ids,
             "created_at": user.created_at
         }
     except ValueError as e:
@@ -38,26 +41,44 @@ def update_user(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """更新用户信息（仅管理员或自己）"""
-    if not current_user.is_admin and current_user.username != username:
+    if current_user.role_id != "admin" and current_user.username != username:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限更新此用户"
         )
-    # 防止非管理员修改管理员权限
-    if not current_user.is_admin and user_update.is_admin is not None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有权限修改管理员权限"
-        )
-    user = user_service.update_user(username, user_update)
-    if not user:
-        raise HTTPException(status_code=404, detail=f"用户 '{username}' 不存在")
-    return {
-        "username": user.username,
-        "is_admin": user.is_admin,
-        "allowed_customs_codes": user.allowed_customs_codes,
-        "updated_at": user.updated_at
-    }
+    
+    # 防止非管理员修改角色和权限
+    if current_user.role_id != "admin":
+        if user_update.role_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="没有权限修改用户角色"
+            )
+        if user_update.additional_permissions is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="没有权限修改用户权限"
+            )
+        if user_update.group_ids is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="没有权限修改用户组"
+            )
+    
+    try:
+        user = user_service.update_user(username, user_update)
+        if not user:
+            raise HTTPException(status_code=404, detail=f"用户 '{username}' 不存在")
+        return {
+            "username": user.username,
+            "role_id": user.role_id,
+            "allowed_customs_codes": user.allowed_customs_codes,
+            "additional_permissions": user.additional_permissions,
+            "group_ids": user.group_ids,
+            "updated_at": user.updated_at
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete("/{username}", response_model=Dict[str, str], tags=["用户管理"])
 def delete_user(
@@ -65,7 +86,7 @@ def delete_user(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """删除用户（仅管理员）"""
-    if not current_user.is_admin:
+    if current_user.role_id != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限删除用户，需要管理员权限"
@@ -82,7 +103,7 @@ def delete_user(
 @router.get("/", response_model=List[Dict[str, Any]], tags=["用户管理"])
 def list_users(current_user: UserInDB = Depends(get_current_user)):
     """列出所有用户（仅管理员）"""
-    if not current_user.is_admin:
+    if current_user.role_id != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限查看用户列表，需要管理员权限"
@@ -95,7 +116,7 @@ def get_user(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """获取用户详情（仅管理员或自己）"""
-    if not current_user.is_admin and current_user.username != username:
+    if current_user.role_id != "admin" and current_user.username != username:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限查看此用户信息"
@@ -105,8 +126,10 @@ def get_user(
         raise HTTPException(status_code=404, detail=f"用户 '{username}'不存在")
     return {
         "username": user.username,
-        "is_admin": user.is_admin,
+        "role_id": user.role_id,
         "allowed_customs_codes": user.allowed_customs_codes,
+        "additional_permissions": user.additional_permissions,
+        "group_ids": user.group_ids,
         "created_at": user.created_at,
         "updated_at": user.updated_at
     }

@@ -12,34 +12,44 @@ logger = logging.getLogger(__name__)
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-class UserCreate(BaseModel):
-    username: str
-    password: str
-    allowed_customs_codes: Optional[List[str]] = None
-    is_admin: bool = False
-    group_ids: Optional[List[str]] = []  # 新增：用户组ID列表
-
-class UserUpdate(BaseModel):
-    password: Optional[str] = None
-    allowed_customs_codes: Optional[List[str]] = None
-    is_admin: Optional[bool] = None
-    group_ids: Optional[List[str]] = None  # 新增：用户组ID列表
-
-class UserInDB(BaseModel):
-    username: str
-    hashed_password: str
-    allowed_customs_codes: List[str] = []
-    is_admin: bool = False
-    group_ids: List[str] = []  # 新增：用户组ID列表
-    created_at: datetime = datetime.utcnow()
-    updated_at: datetime = datetime.utcnow()
-
+# Token相关模型
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role_id: str = "user"  # 默认为普通用户角色
+    allowed_customs_codes: Optional[List[str]] = None
+    additional_permissions: Optional[List[str]] = None  # 额外权限
+    group_ids: Optional[List[str]] = None
+
+class UserUpdate(BaseModel):
+    password: Optional[str] = None
+    role_id: Optional[str] = None
+    allowed_customs_codes: Optional[List[str]] = None
+    additional_permissions: Optional[List[str]] = None  # 额外权限
+    group_ids: Optional[List[str]] = None
+
+class UserInDB(BaseModel):
+    username: str
+    hashed_password: str
+    role_id: str = "user"
+    allowed_customs_codes: List[str] = []
+    additional_permissions: List[str] = []  # 额外权限
+    group_ids: List[str] = []
+    created_at: datetime
+    updated_at: datetime
+    
+    # 保持向后兼容
+    @property
+    def is_admin(self) -> bool:
+        """向后兼容的管理员检查"""
+        return self.role_id == "admin"
 
 class UserService:
     def __init__(self):
@@ -55,10 +65,11 @@ class UserService:
                 "mappings": {
                     "properties": {
                         "username": {"type": "keyword"},
-                        "hashed_password": {"type": "text"},
+                        "hashed_password": {"type": "keyword"},
+                        "role_id": {"type": "keyword"},
                         "allowed_customs_codes": {"type": "keyword"},
-                        "is_admin": {"type": "boolean"},
-                        "group_ids": {"type": "keyword"},  # 新增：用户组ID字段
+                        "additional_permissions": {"type": "keyword"},
+                        "group_ids": {"type": "keyword"},
                         "created_at": {"type": "date"},
                         "updated_at": {"type": "date"}
                     }
@@ -66,44 +77,34 @@ class UserService:
             }
             self.es_client.indices.create(index=self.index_name, body=mapping)
             logger.info(f"创建用户索引: {self.index_name}")
-        else:
-            logger.info(f"用户索引已存在: {self.index_name}")
 
     def _create_default_admin_user(self):
-        """创建默认管理员用户（如果不存在）"""
+        """创建默认管理员用户"""
         admin_username = "admin"
-        admin_password = "admin123"
-
-        # 检查管理员用户是否已存在
         if not self.get_user_by_username(admin_username):
-            # 创建管理员用户
-            user_data = UserCreate(
+            admin_user = UserCreate(
                 username=admin_username,
-                password=admin_password,
-                allowed_customs_codes=[],
-                is_admin=True,
-                group_ids=[]
+                password="admin123",
+                role_id="admin"
             )
-            self.create_user(user_data)
-            logger.warning(f"已创建默认管理员用户: {admin_username}, 初始密码: {admin_password}, 请尽快修改!")
-        else:
-            logger.info(f"管理员用户已存在: {admin_username}")
+            self.create_user(admin_user)
+            logger.info("创建默认管理员用户")
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """验证密码"""
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """生成密码哈希"""
+        """获取密码哈希"""
         return pwd_context.hash(password)
 
-    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """创建JWT访问令牌"""
+    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None):
+        """创建访问令牌"""
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=15)
+            expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
         return encoded_jwt
@@ -117,6 +118,11 @@ class UserService:
             )
             if response["hits"]["total"]["value"] > 0:
                 user_data = response["hits"]["hits"][0]["_source"]
+                # 向后兼容：如果没有role_id，根据is_admin设置
+                if "role_id" not in user_data:
+                    user_data["role_id"] = "admin" if user_data.get("is_admin", False) else "user"
+                if "additional_permissions" not in user_data:
+                    user_data["additional_permissions"] = []
                 return UserInDB(**user_data)
             return None
         except Exception as e:
@@ -129,14 +135,28 @@ class UserService:
         if self.get_user_by_username(user_create.username):
             raise ValueError(f"用户名 '{user_create.username}' 已存在")
 
+        # 验证角色是否存在
+        from .role_service import RoleService
+        role_service = RoleService()
+        if not role_service.get_role_by_id(user_create.role_id):
+            raise ValueError(f"角色 '{user_create.role_id}' 不存在")
+
+        # 验证额外权限
+        if user_create.additional_permissions:
+            available_permissions = role_service.get_available_permissions()
+            invalid_permissions = [p for p in user_create.additional_permissions if p not in available_permissions]
+            if invalid_permissions:
+                raise ValueError(f"无效的权限: {invalid_permissions}")
+
         # 准备用户数据
         now = datetime.utcnow()
         user_data = {
             "username": user_create.username,
             "hashed_password": self.get_password_hash(user_create.password),
+            "role_id": user_create.role_id,
             "allowed_customs_codes": user_create.allowed_customs_codes or [],
-            "is_admin": user_create.is_admin,
-            "group_ids": user_create.group_ids or [],  # 新增：用户组ID
+            "additional_permissions": user_create.additional_permissions or [],
+            "group_ids": user_create.group_ids or [],
             "created_at": now,
             "updated_at": now
         }
@@ -145,7 +165,7 @@ class UserService:
         self.es_client.index(
             index=self.index_name,
             document=user_data,
-            id=user_create.username  # 使用用户名作为文档ID
+            id=user_create.username
         )
 
         logger.info(f"创建用户成功: {user_create.username}")
@@ -157,15 +177,33 @@ class UserService:
         if not user:
             return None
 
+        # 验证角色是否存在
+        if user_update.role_id:
+            from .role_service import RoleService
+            role_service = RoleService()
+            if not role_service.get_role_by_id(user_update.role_id):
+                raise ValueError(f"角色 '{user_update.role_id}' 不存在")
+
+        # 验证额外权限
+        if user_update.additional_permissions is not None:
+            from .role_service import RoleService
+            role_service = RoleService()
+            available_permissions = role_service.get_available_permissions()
+            invalid_permissions = [p for p in user_update.additional_permissions if p not in available_permissions]
+            if invalid_permissions:
+                raise ValueError(f"无效的权限: {invalid_permissions}")
+
         # 准备更新数据
         update_data = {}
         if user_update.password:
             update_data["hashed_password"] = self.get_password_hash(user_update.password)
+        if user_update.role_id is not None:
+            update_data["role_id"] = user_update.role_id
         if user_update.allowed_customs_codes is not None:
             update_data["allowed_customs_codes"] = user_update.allowed_customs_codes
-        if user_update.is_admin is not None:
-            update_data["is_admin"] = user_update.is_admin
-        if user_update.group_ids is not None:  # 新增：更新用户组
+        if user_update.additional_permissions is not None:
+            update_data["additional_permissions"] = user_update.additional_permissions
+        if user_update.group_ids is not None:
             update_data["group_ids"] = user_update.group_ids
         update_data["updated_at"] = datetime.utcnow()
 
@@ -206,6 +244,11 @@ class UserService:
                 user_data = hit["_source"]
                 # 不返回密码哈希
                 user_data.pop("hashed_password", None)
+                # 向后兼容
+                if "role_id" not in user_data:
+                    user_data["role_id"] = "admin" if user_data.get("is_admin", False) else "user"
+                if "additional_permissions" not in user_data:
+                    user_data["additional_permissions"] = []
                 users.append(user_data)
             return users
         except Exception as e:
@@ -230,32 +273,40 @@ class UserService:
             logger.error(f"获取用户组用户失败: {str(e)}")
             return []
 
+    def get_users_by_role(self, role_id: str) -> List[Dict[str, Any]]:
+        """获取使用特定角色的用户列表"""
+        try:
+            response = self.es_client.search(
+                index=self.index_name,
+                query={"term": {"role_id": role_id}},
+                size=1000
+            )
+            users = []
+            for hit in response["hits"]["hits"]:
+                user_data = hit["_source"]
+                user_data.pop("hashed_password", None)
+                users.append(user_data)
+            return users
+        except Exception as e:
+            logger.error(f"获取角色用户失败: {str(e)}")
+            return []
+
     def get_user_permissions(self, username: str) -> List[str]:
-        """获取用户的功能权限（基于角色）"""
+        """获取用户的功能权限（角色权限 + 额外权限）"""
         user = self.get_user_by_username(username)
         if not user:
             return []
         
-        # 管理员拥有所有权限
-        if user.is_admin:
-            return [
-                "data_view",      # 查看数据
-                "data_export",    # 导出数据
-                "data_create",    # 创建数据
-                "data_update",    # 更新数据
-                "data_delete",    # 删除数据
-                "data_import",    # 导入数据
-                "user_manage",    # 用户管理
-                "group_manage",   # 用户组管理
-                "ai_search",      # AI搜索
-            ]
-        else:
-            # 普通用户只有基本权限
-            return [
-                "data_view",      # 查看数据
-                "data_export",    # 导出数据
-                "ai_search",      # AI搜索
-            ]
+        # 获取角色权限
+        from .role_service import RoleService
+        role_service = RoleService()
+        role_permissions = role_service.get_role_permissions(user.role_id)
+        
+        # 合并角色权限和额外权限
+        all_permissions = set(role_permissions)
+        all_permissions.update(user.additional_permissions)
+        
+        return list(all_permissions)
 
     def get_user_customs_codes(self, username: str) -> List[str]:
         """获取用户可访问的海关编码（包括用户组权限）"""
@@ -264,7 +315,7 @@ class UserService:
             return []
         
         # 管理员可以访问所有海关编码
-        if user.is_admin:
+        if user.role_id == "admin":
             return []  # 空列表表示可以访问所有
         
         # 收集用户直接权限和用户组权限
@@ -293,7 +344,7 @@ class UserService:
         if not user:
             return False
         # 管理员可以访问所有数据
-        if user.is_admin:
+        if user.role_id == "admin":
             return True
         
         # 获取用户可访问的海关编码（包括用户组权限）

@@ -24,10 +24,12 @@ import {
   SaveOutlined, 
   CloseOutlined,
   UserOutlined,
-  TeamOutlined
+  TeamOutlined,
+  SafetyOutlined
 } from '@ant-design/icons';
-import { userAPI, dataAPI, groupAPI } from '../utils/api';
+import { userAPI, dataAPI, groupAPI, roleAPI } from '../utils/api';
 import GroupManagement from '../components/GroupManagement';
+import RoleManagement from '../components/RoleManagement';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -37,6 +39,8 @@ const { TabPane } = Tabs;
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [availablePermissions, setAvailablePermissions] = useState({});
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState('create'); // 'create' or 'edit'
@@ -68,6 +72,26 @@ const UserManagement = () => {
     }
   };
 
+  // 获取角色列表
+  const fetchRoles = async () => {
+    try {
+      const response = await roleAPI.getRoles();
+      setRoles(response);
+    } catch (error) {
+      console.error('获取角色列表失败:', error);
+    }
+  };
+
+  // 获取可用权限列表
+  const fetchAvailablePermissions = async () => {
+    try {
+      const response = await roleAPI.getAvailablePermissions();
+      setAvailablePermissions(response);
+    } catch (error) {
+      console.error('获取可用权限失败:', error);
+    }
+  };
+
   // 获取海关编码列表
   const fetchCustomsCodes = async () => {
     try {
@@ -83,6 +107,8 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
     fetchGroups();
+    fetchRoles();
+    fetchAvailablePermissions();
     fetchCustomsCodes();
   }, []);
 
@@ -93,6 +119,12 @@ const UserManagement = () => {
       const group = groups.find(g => g.id === id);
       return group ? group.name : id;
     });
+  };
+
+  // 根据角色ID获取角色名称
+  const getRoleName = (roleId) => {
+    const role = roles.find(r => r.id === roleId);
+    return role ? role.name : roleId;
   };
 
   // 显示创建用户模态框
@@ -110,7 +142,8 @@ const UserManagement = () => {
     form.setFieldsValue({
       username: user.username,
       password: '', // 不显示现有密码
-      is_admin: user.is_admin,
+      role_id: user.role_id,
+      additional_permissions: user.additional_permissions || [],
       allowed_customs_codes: user.allowed_customs_codes,
       group_ids: user.group_ids || []
     });
@@ -134,7 +167,8 @@ const UserManagement = () => {
         await userAPI.createUser({
           username: values.username,
           password: values.password,
-          is_admin: values.is_admin || false,
+          role_id: values.role_id,
+          additional_permissions: values.additional_permissions || [],
           allowed_customs_codes: values.allowed_customs_codes || [],
           group_ids: values.group_ids || []
         });
@@ -142,7 +176,8 @@ const UserManagement = () => {
       } else {
         // 编辑现有用户
         const updateData = {
-          is_admin: values.is_admin || false,
+          role_id: values.role_id,
+          additional_permissions: values.additional_permissions || [],
           allowed_customs_codes: values.allowed_customs_codes || [],
           group_ids: values.group_ids || []
         };
@@ -158,7 +193,7 @@ const UserManagement = () => {
       fetchUsers(); // 刷新用户列表
     } catch (error) {
       console.error(`${modalType === 'create' ? '创建' : '更新'}用户失败:`, error);
-      message.error(`${modalType === 'create' ? '创建' : '更新'}用户失败，请重试`);
+      message.error(error.response?.data?.detail || `${modalType === 'create' ? '创建' : '更新'}用户失败，请重试`);
     } finally {
       setLoading(false);
     }
@@ -189,14 +224,39 @@ const UserManagement = () => {
       render: (text) => <strong>{text}</strong>
     },
     {
-      title: '管理员权限',
-      dataIndex: 'is_admin',
-      key: 'is_admin',
+      title: '角色',
+      dataIndex: 'role_id',
+      key: 'role_id',
       width: 100,
-      render: (isAdmin) => (
-        <Tag color={isAdmin ? 'red' : 'default'}>
-          {isAdmin ? '管理员' : '普通用户'}
-        </Tag>
+      render: (roleId) => {
+        const roleName = getRoleName(roleId);
+        const isAdmin = roleId === 'admin';
+        return (
+          <Tag color={isAdmin ? 'red' : 'blue'}>
+            {roleName}
+          </Tag>
+        );
+      }
+    },
+    {
+      title: '额外权限',
+      dataIndex: 'additional_permissions',
+      key: 'additional_permissions',
+      width: 200,
+      render: (permissions) => (
+        <div>
+          {permissions?.slice(0, 2).map(permission => (
+            <Tag key={permission} color="orange" style={{ marginBottom: 4 }}>
+              {availablePermissions[permission] || permission}
+            </Tag>
+          ))}
+          {permissions?.length > 2 && (
+            <Tag color="default">+{permissions.length - 2}个</Tag>
+          )}
+          {(!permissions || permissions.length === 0) && (
+            <span style={{ color: '#999' }}>无</span>
+          )}
+        </div>
       )
     },
     {
@@ -209,7 +269,7 @@ const UserManagement = () => {
         return (
           <div>
             {groupNames.map(name => (
-              <Tag key={name} color="blue" style={{ marginBottom: 4 }}>
+              <Tag key={name} color="green" style={{ marginBottom: 4 }}>
                 {name}
               </Tag>
             ))}
@@ -228,7 +288,7 @@ const UserManagement = () => {
       render: (codes) => (
         <div>
           {codes?.slice(0, 3).map(code => (
-            <Tag key={code} color="green" style={{ marginBottom: 4 }}>
+            <Tag key={code} color="purple" style={{ marginBottom: 4 }}>
               {code}
             </Tag>
           ))}
@@ -319,8 +379,20 @@ const UserManagement = () => {
                 showQuickJumper: true,
                 showTotal: (total) => `共 ${total} 个用户`
               }}
-              scroll={{ x: 1200 }}
+              scroll={{ x: 1400 }}
             />
+          </TabPane>
+          
+          <TabPane 
+            tab={
+              <span>
+                <SafetyOutlined />
+                角色管理
+              </span>
+            } 
+            key="roles"
+          >
+            <RoleManagement />
           </TabPane>
           
           <TabPane 
@@ -350,13 +422,13 @@ const UserManagement = () => {
             <SaveOutlined /> {modalType === 'create' ? '创建' : '更新'}
           </Button>
         ]}
-        width={600}
+        width={700}
       >
         <Form
           form={form}
           layout="vertical"
           initialValues={{
-            is_admin: false,
+            additional_permissions: [],
             allowed_customs_codes: [],
             group_ids: []
           }}
@@ -391,17 +463,50 @@ const UserManagement = () => {
           </Form.Item>
 
           <Form.Item
-            label="管理员权限"
-            name="is_admin"
-            valuePropName="checked"
+            label="用户角色"
+            name="role_id"
+            rules={[{ required: true, message: '请选择用户角色' }]}
+            extra="用户将获得所选角色的基础权限"
           >
-            <Checkbox>设为管理员</Checkbox>
+            <Select placeholder="请选择用户角色">
+              {roles.map(role => (
+                <Option key={role.id} value={role.id}>
+                  <Space>
+                    {role.name}
+                    {role.is_system && <Tag size="small" color="blue">系统角色</Tag>}
+                  </Space>
+                  {role.description && (
+                    <div style={{ color: '#999', fontSize: '12px' }}>
+                      {role.description}
+                    </div>
+                  )}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="额外权限"
+            name="additional_permissions"
+            extra="这些权限将与角色权限合并，为用户提供额外的功能访问权限"
+          >
+            <Select
+              mode="multiple"
+              placeholder="请选择额外权限（可选）"
+              style={{ width: '100%' }}
+            >
+              {Object.entries(availablePermissions).map(([key, value]) => (
+                <Option key={key} value={key}>
+                  {value}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item
             label="所属用户组"
             name="group_ids"
-            extra="用户将继承所属用户组的权限"
+            extra="用户将继承所属用户组的海关编码访问权限"
           >
             <Select
               mode="multiple"

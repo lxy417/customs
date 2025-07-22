@@ -146,12 +146,24 @@ export const dataAPI = {
 //   }
 // };
 
+// 用户管理相关API
 export const userAPI = {
+  getUsers: () => api.get('/api/v1/user'),
   createUser: (userData) => api.post('/api/v1/user', userData),
   updateUser: (username, userData) => api.put(`/api/v1/user/${username}`, userData),
   deleteUser: (username) => api.delete(`/api/v1/user/${username}`),
-  getUsers: () => api.get('/api/v1/user'),
-  getUser: (username) => api.get(`/api/v1/user/${username}`)
+  getUserByUsername: (username) => api.get(`/api/v1/user/${username}`),
+  getUsersByGroup: (groupId) => api.get(`/api/v1/user/group/${groupId}`)
+};
+
+// 角色管理相关API
+export const roleAPI = {
+  createRole: (roleData) => api.post('/api/v1/role', roleData),
+  updateRole: (roleId, roleData) => api.put(`/api/v1/role/${roleId}`, roleData),
+  deleteRole: (roleId) => api.delete(`/api/v1/role/${roleId}`),
+  getRoles: () => api.get('/api/v1/role'),
+  getRole: (roleId) => api.get(`/api/v1/role/${roleId}`),
+  getAvailablePermissions: () => api.get('/api/v1/role/permissions/available')
 };
 
 // 用户组管理相关API

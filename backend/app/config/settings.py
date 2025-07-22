@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     ELASTICSEARCH_PASSWORD: Optional[str] = "changeme"
     ELASTICSEARCH_SCHEME: str = "http"
     ELASTICSEARCH_VERIFY_CERTS: bool = False
+    ES_INDEX_PREFIX: str = "customs"
     
     # JWT认证配置
     SECRET_KEY: str = "your-secret-key-here-change-in-production"

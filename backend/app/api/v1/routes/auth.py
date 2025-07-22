@@ -50,16 +50,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
 @router.get("/me", response_model=Dict[str, Any], tags=["认证管理"])
 def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     """获取当前用户信息"""
-    # 获取用户的所有权限（包括用户组权限）
+    # 获取用户的所有权限（角色权限 + 额外权限 + 用户组权限）
     user_permissions = user_service.get_user_permissions(current_user.username)
     user_customs_codes = user_service.get_user_customs_codes(current_user.username)
     
+    # 获取角色信息
+    from ....services.role_service import RoleService
+    role_service = RoleService()
+    role = role_service.get_role_by_id(current_user.role_id)
+    
     return {
         "username": current_user.username,
-        "is_admin": current_user.is_admin,
+        "role_id": current_user.role_id,
+        "role_name": role.name if role else "未知角色",
+        "is_admin": current_user.role_id == "admin",  # 向后兼容
         "allowed_customs_codes": current_user.allowed_customs_codes,
+        "additional_permissions": current_user.additional_permissions,
         "group_ids": current_user.group_ids,
-        "effective_permissions": user_permissions,  # 有效权限（包括用户组权限）
+        "effective_permissions": user_permissions,  # 有效权限（角色 + 额外权限）
         "effective_customs_codes": user_customs_codes,  # 有效海关编码（包括用户组权限）
         "created_at": current_user.created_at
     }
