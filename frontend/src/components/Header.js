@@ -2,6 +2,7 @@ import { Layout, Dropdown, Menu, Avatar, Typography, Space } from 'antd';
 import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions, PERMISSIONS } from '../utils/permissions';
 import './Header.css';
 
 const { Header } = Layout;
@@ -9,16 +10,7 @@ const { Header } = Layout;
 const AppHeader = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
-
-  // 权限检查函数
-  const hasPermission = (permission) => {
-    return user?.effective_permissions?.includes(permission) || false;
-  };
-
-  // 检查是否为管理员
-  const isAdmin = () => {
-    return user?.is_admin || user?.role_id === 'admin';
-  };
+  const { hasPermission } = usePermissions(user);
 
   // 用户菜单选项
   const userMenu = (
@@ -28,7 +20,6 @@ const AppHeader = () => {
           key: 'profile',
           icon: <UserOutlined />,
           label: user?.username,
-          // disabled: true,
         },
         {
           key: 'setting',
@@ -71,7 +62,7 @@ const AppHeader = () => {
     });
 
     // 数据查询 - 需要 data_view 权限
-    if (hasPermission('data_view')) {
+    if (hasPermission(PERMISSIONS.DATA_VIEW)) {
       menuItems.push({
         key: 'data-query',
         icon: <PieChartOutlined />,
@@ -80,7 +71,7 @@ const AppHeader = () => {
     }
 
     // 批量导入 - 需要 data_import 权限
-    if (hasPermission('data_import')) {
+    if (hasPermission(PERMISSIONS.DATA_IMPORT)) {
       menuItems.push({
         key: 'import',
         icon: <CloudUploadOutlined />,
@@ -89,7 +80,7 @@ const AppHeader = () => {
     }
 
     // 用户管理 - 需要 user_manage 权限
-    if (hasPermission('user_manage')) {
+    if (hasPermission(PERMISSIONS.USER_MANAGE)) {
       menuItems.push({
         key: 'user-management',
         icon: <UserOutlined />,
@@ -111,9 +102,6 @@ const AppHeader = () => {
       />
       <div className="header-right">
         <Space size="large">
-          {/* <Badge count={0} showZero className="header-notification">
-            <BellOutlined className="notification-icon" />
-          </Badge> */}
           <Dropdown overlay={userMenu} placement="bottomRight" arrow>
             <div className="user-info" onClick={(e) => e.preventDefault()}>
               <Avatar icon={<UserOutlined />} className="user-avatar" />
