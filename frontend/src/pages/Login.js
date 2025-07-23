@@ -12,10 +12,12 @@ const Login = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loading } = useAuth();
+  const { login, loading, isManualLogout } = useAuth();
 
-  // 获取登录前的位置，默认为数据查询页
-  const from = location.state?.from?.pathname || '/home';
+  // 获取登录前的位置
+  // 如果是主动登出后的登录，直接跳转到首页
+  // 否则跳转到之前访问的页面，默认为首页
+  const from = isManualLogout ? '/home' : (location.state?.from?.pathname || '/home');
 
   const handleSubmit = async (values) => {
     const success = await login(values.username, values.password);

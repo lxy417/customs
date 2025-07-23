@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isManualLogout, setIsManualLogout] = useState(false); // 新增：标记是否为主动登出
 
   // 初始化：检查本地存储的token并验证
   useEffect(() => {
@@ -18,9 +19,13 @@ export const AuthProvider = ({ children }) => {
           const response = await authAPI.getCurrentUser();
           setUser(response);
           setIsAuthenticated(true);
+          // 如果token有效，清除主动登出标记
+          setIsManualLogout(false);
         } catch (error) {
           console.error('Token验证失败:', error);
           localStorage.removeItem('token');
+          // Token失效不算主动登出
+          setIsManualLogout(false);
         }
       }
       setLoading(false);
@@ -42,6 +47,8 @@ export const AuthProvider = ({ children }) => {
       const userResponse = await authAPI.getCurrentUser();
       setUser(userResponse);
       setIsAuthenticated(true);
+      // 登录成功后清除主动登出标记
+      setIsManualLogout(false);
       message.success('登录成功');
       return true;
     } catch (error) {
@@ -64,12 +71,14 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('token');
       setUser(null);
       setIsAuthenticated(false);
+      // 标记为主动登出
+      setIsManualLogout(true);
       message.success('已成功登出');
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout, isManualLogout }}>
       {children}
     </AuthContext.Provider>
   );
