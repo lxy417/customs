@@ -66,14 +66,14 @@ function App() {
             } 
           />
           
-          {/* 用户管理 - 需要 user_manage 权限 */}
+          {/* 用户管理 - 需要任意一个管理权限 */}
           <Route 
             path="/user-management" 
             element={
               <PrivateRoute 
                 element={<UserManagement />} 
                 path="/user-management"
-                requiredPermissions={[PERMISSIONS.USER_MANAGE]}
+                requiredPermissions={[PERMISSIONS.USER_MANAGE, PERMISSIONS.ROLE_MANAGE, PERMISSIONS.GROUP_MANAGE]}
               />
             } 
           />

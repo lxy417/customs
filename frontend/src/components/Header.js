@@ -79,8 +79,10 @@ const AppHeader = () => {
       });
     }
 
-    // 用户管理 - 需要 user_manage 权限
-    if (hasPermission(PERMISSIONS.USER_MANAGE)) {
+    // 用户管理 - 需要任意一个管理权限
+    if (hasPermission(PERMISSIONS.USER_MANAGE) || 
+        hasPermission(PERMISSIONS.ROLE_MANAGE) || 
+        hasPermission(PERMISSIONS.GROUP_MANAGE)) {
       menuItems.push({
         key: 'user-management',
         icon: <UserOutlined />,

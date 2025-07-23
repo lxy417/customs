@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Select, Button, Space, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { usePermissions, PERMISSIONS } from '../utils/permissions';
 import { dataAPI } from '../utils/api';
 
 const { Option } = Select;
@@ -15,6 +17,10 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const navigate = useNavigate();
+  
+  // 添加权限检查
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions(user);
 
   // 获取搜索选项数据
   useEffect(() => {
@@ -38,15 +44,29 @@ const Home = () => {
     fetchOptions();
   }, []);
 
+  // 当AI搜索权限被移除时，自动切换到其他搜索类型
+  useEffect(() => {
+    if (searchType === 'ai' && !hasPermission(PERMISSIONS.AI_SEARCH)) {
+      setSearchType('customs_code');
+      setSearchValue('');
+    }
+  }, [searchType, hasPermission]);
+
   const handleSearch = async () => {
     if (!searchValue.trim()) return;
 
-  if (searchType === 'ai') {
-    try {
-      setAiLoading(true);
-      // 调用DeepSeek API将自然语言转换为查询条件
-      const response = await dataAPI.aiSearch(searchValue, exportCountries, importCountries)
-        
+    if (searchType === 'ai') {
+      // 检查AI搜索权限
+      if (!hasPermission(PERMISSIONS.AI_SEARCH)) {
+        alert('您没有AI搜索权限');
+        return;
+      }
+      
+      try {
+        setAiLoading(true);
+        // 调用DeepSeek API将自然语言转换为查询条件
+        const response = await dataAPI.aiSearch(searchValue, exportCountries, importCountries)
+          
         navigate('/data-query', { state: response });
       } catch (error) {
         console.error('AI搜索错误:', error);
@@ -89,52 +109,57 @@ const Home = () => {
       }}>
         <h1 style={{ marginBottom: '30px', color: '#1890ff' }}>海关数据查询</h1>
         <Space.Compact>
-        <Select
+          <Select
             value={searchType}
             onChange={setSearchType}
-            style={{ height: 40,width: 120 }}
+            style={{ height: 40, width: 120 }}
           >
             <Option value="customs_code">海关编码</Option>
             <Option value="export_country">出口国家</Option>
             <Option value="import_country">进口国家</Option>
-            <Option value="ai">AI搜索</Option>
+            {/* AI搜索选项根据权限显示 */}
+            {hasPermission(PERMISSIONS.AI_SEARCH) && (
+              <Option value="ai">AI搜索</Option>
+            )}
           </Select>
-          {searchType === 'ai' ?<Input
-            // addonBefore={selectBefore}
-            placeholder="请输入搜索内容..."
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onPressEnter={handleSearch}
-            style={{ width: "360px" }}
-            // enterButton="搜索"
-            size="large"
-            loading={aiLoading}
-            />:<Select
-                  showSearch
-                  value={searchValue}
-                  onChange={setSearchValue}
-                  placeholder="请输入搜索内容..."
-                  style={{ width: "360px" }}
-                  filterOption={(input, option) =>
-                    (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                  dropdownStyle={{ maxHeight: 300, overflow: 'auto' }}
-                  loading={loading}
-                  size="large"
-                >
-                  {searchType === 'customs_code'
-                    ? customsCodes.map(code => <Option key={code} value={code}>{code}</Option>)
-                    : searchType === 'export_country'
-                      ? exportCountries.map(country => <Option key={country} value={country}>{country}</Option>)
-                      : searchType === 'import_country'
-                        ? importCountries.map(country => <Option key={country} value={country}>{country}</Option>)
-                        : null
-                  }
-                </Select>}
-            <Button type="primary" size="large" onClick={handleSearch} loading={aiLoading}>
-              搜索
-            </Button>
-              </Space.Compact>
+          {searchType === 'ai' ? (
+            <Input
+              placeholder="请输入搜索内容..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: "360px" }}
+              size="large"
+              loading={aiLoading}
+            />
+          ) : (
+            <Select
+              showSearch
+              value={searchValue}
+              onChange={setSearchValue}
+              placeholder="请输入搜索内容..."
+              style={{ width: "360px" }}
+              filterOption={(input, option) =>
+                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              dropdownStyle={{ maxHeight: 300, overflow: 'auto' }}
+              loading={loading}
+              size="large"
+            >
+              {searchType === 'customs_code'
+                ? customsCodes.map(code => <Option key={code} value={code}>{code}</Option>)
+                : searchType === 'export_country'
+                  ? exportCountries.map(country => <Option key={country} value={country}>{country}</Option>)
+                  : searchType === 'import_country'
+                    ? importCountries.map(country => <Option key={country} value={country}>{country}</Option>)
+                    : null
+              }
+            </Select>
+          )}
+          <Button type="primary" size="large" onClick={handleSearch} loading={aiLoading}>
+            搜索
+          </Button>
+        </Space.Compact>
       </div>
     </div>
   );

@@ -8,7 +8,6 @@ import {
   Select, 
   message, 
   Typography, 
-  Card, 
   Space, 
   Popconfirm,
   Tag,
@@ -20,23 +19,24 @@ import {
   DeleteOutlined, 
   SaveOutlined, 
   CloseOutlined,
-  UserOutlined,
-  TeamOutlined
+  UserOutlined
 } from '@ant-design/icons';
 import { groupAPI, userAPI, dataAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions, PERMISSIONS } from '../utils/permissions';
 
 const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
 const GroupManagement = () => {
-  const { user: currentUser } = useAuth(); // 获取当前登录用户信息
+  const { user: currentUser } = useAuth();
+  const { hasPermission } = usePermissions(currentUser);
   const [groups, setGroups] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalType, setModalType] = useState('create'); // 'create' or 'edit'
+  const [modalType, setModalType] = useState('create');
   const [form] = Form.useForm();
   const [currentGroup, setCurrentGroup] = useState(null);
   const [customsCodes, setCustomsCodes] = useState([]);
@@ -44,6 +44,13 @@ const GroupManagement = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [transferData, setTransferData] = useState([]);
   const [targetKeys, setTargetKeys] = useState([]);
+
+  // 组件挂载时加载数据
+  useEffect(() => {
+    fetchGroups();
+    fetchUsers();
+    fetchCustomsCodes();
+  }, []);
 
   // 获取用户组列表
   const fetchGroups = async () => {
@@ -80,28 +87,18 @@ const GroupManagement = () => {
     }
   };
 
-  useEffect(() => {
-    fetchGroups();
-    fetchUsers();
-    fetchCustomsCodes();
-  }, []);
-
   // 渲染海关编码权限的函数
   const renderCustomsCodesPermission = (codes) => {
-    // 检查当前登录用户是否为管理员
     const isCurrentUserAdmin = currentUser?.is_admin || currentUser?.role_id === 'admin';
     
     if (!codes || codes.length === 0) {
       if (isCurrentUserAdmin) {
-        // 管理员看到的是"无限制"
         return <span style={{ color: '#999' }}>无限制</span>;
       } else {
-        // 普通用户看到的是"无"
         return <span style={{ color: '#999' }}>无</span>;
       }
     }
     
-    // 有具体的海关编码权限
     return (
       <div>
         {codes.slice(0, 3).map(code => (
@@ -147,7 +144,8 @@ const GroupManagement = () => {
       width: 150,
       render: (date) => new Date(date).toLocaleString()
     },
-    {
+    // 只有拥有用户组管理权限的用户才能看到操作列
+    ...(hasPermission(PERMISSIONS.GROUP_MANAGE) ? [{
       title: '操作',
       key: 'action',
       width: 150,
@@ -184,7 +182,7 @@ const GroupManagement = () => {
           </Popconfirm>
         </Space>
       )
-    }
+    }] : [])
   ];
 
   // 显示创建用户组模态框
@@ -230,11 +228,9 @@ const GroupManagement = () => {
     try {
       setSelectedGroup(group);
       
-      // 获取用户组详情（包含用户列表）
       const groupDetail = await groupAPI.getGroup(group.id);
       const usersInGroup = groupDetail.users || [];
       
-      // 准备穿梭框数据
       const transferDataSource = users.map(user => ({
         key: user.username,
         title: user.username,
@@ -284,21 +280,17 @@ const GroupManagement = () => {
   // 保存用户组成员变更
   const handleSaveUserChanges = async () => {
     try {
-      // 获取当前用户组的用户列表
       const groupDetail = await groupAPI.getGroup(selectedGroup.id);
       const currentUsers = groupDetail.users || [];
       const currentUsernames = currentUsers.map(user => user.username);
       
-      // 计算需要添加和移除的用户
       const usersToAdd = targetKeys.filter(username => !currentUsernames.includes(username));
       const usersToRemove = currentUsernames.filter(username => !targetKeys.includes(username));
       
-      // 执行添加操作
       for (const username of usersToAdd) {
         await groupAPI.addUserToGroup(selectedGroup.id, username);
       }
       
-      // 执行移除操作
       for (const username of usersToRemove) {
         await groupAPI.removeUserFromGroup(selectedGroup.id, username);
       }
@@ -318,13 +310,16 @@ const GroupManagement = () => {
         <Title level={4} style={{ margin: 0 }}>
           用户组列表
         </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={showCreateModal}
-        >
-          创建用户组
-        </Button>
+        {/* 只有拥有用户组管理权限的用户才能创建用户组 */}
+        {hasPermission(PERMISSIONS.GROUP_MANAGE) && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={showCreateModal}
+          >
+            创建用户组
+          </Button>
+        )}
       </div>
 
       <Table
@@ -341,109 +336,113 @@ const GroupManagement = () => {
         scroll={{ x: 1000 }}
       />
 
-      {/* 创建/编辑用户组模态框 */}
-      <Modal
-        title={modalType === 'create' ? '创建用户组' : '编辑用户组'}
-        open={modalVisible}
-        onCancel={handleCancel}
-        footer={[
-          <Button key="cancel" onClick={handleCancel}>
-            <CloseOutlined /> 取消
-          </Button>,
-          <Button key="submit" type="primary" onClick={handleSubmit} loading={loading}>
-            <SaveOutlined /> {modalType === 'create' ? '创建' : '更新'}
-          </Button>
-        ]}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            allowed_customs_codes: []
-          }}
+      {/* 创建/编辑用户组模态框 - 只有拥有用户组管理权限的用户才能看到 */}
+      {hasPermission(PERMISSIONS.GROUP_MANAGE) && (
+        <Modal
+          title={modalType === 'create' ? '创建用户组' : '编辑用户组'}
+          open={modalVisible}
+          onCancel={handleCancel}
+          footer={[
+            <Button key="cancel" onClick={handleCancel}>
+              <CloseOutlined /> 取消
+            </Button>,
+            <Button key="submit" type="primary" onClick={handleSubmit} loading={loading}>
+              <SaveOutlined /> {modalType === 'create' ? '创建' : '更新'}
+            </Button>
+          ]}
+          width={600}
         >
-          <Form.Item
-            label="用户组名称"
-            name="name"
-            rules={[
-              { required: true, message: '请输入用户组名称' },
-              { min: 2, max: 50, message: '用户组名称长度应在2-50个字符之间' }
-            ]}
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              allowed_customs_codes: []
+            }}
           >
-            <Input placeholder="请输入用户组名称" />
-          </Form.Item>
-
-          <Form.Item
-            label="描述"
-            name="description"
-          >
-            <TextArea 
-              placeholder="请输入用户组描述（可选）" 
-              rows={3}
-              maxLength={200}
-              showCount
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="允许访问的海关编码"
-            name="allowed_customs_codes"
-            extra="不选择表示可以访问所有海关编码，此权限与用户直接权限叠加"
-          >
-            <Select
-              mode="multiple"
-              placeholder="请选择海关编码（可选）"
-              style={{ width: '100%' }}
-              showSearch
-              filterOption={(input, option) =>
-                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-              }
+            <Form.Item
+              label="用户组名称"
+              name="name"
+              rules={[
+                { required: true, message: '请输入用户组名称' },
+                { min: 2, max: 50, message: '用户组名称长度应在2-50个字符之间' }
+              ]}
             >
-              {customsCodes.map(code => (
-                <Option key={code} value={code}>
-                  {code}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
+              <Input placeholder="请输入用户组名称" />
+            </Form.Item>
 
-      {/* 管理用户组成员模态框 */}
-      <Modal
-        title={`管理用户组成员 - ${selectedGroup?.name}`}
-        open={userModalVisible}
-        onCancel={() => setUserModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setUserModalVisible(false)}>
-            取消
-          </Button>,
-          <Button key="submit" type="primary" onClick={handleSaveUserChanges}>
-            保存更改
-          </Button>
-        ]}
-        width={700}
-      >
-        <div style={{ marginBottom: '16px' }}>
-          <p>左侧为所有用户，右侧为当前用户组成员。拖拽或点击箭头来调整成员。</p>
-        </div>
-        <Transfer
-          dataSource={transferData}
-          targetKeys={targetKeys}
-          onChange={handleUserTransferChange}
-          render={item => item.title}
-          titles={['所有用户', '用户组成员']}
-          listStyle={{
-            width: 300,
-            height: 400,
-          }}
-          showSearch
-          filterOption={(inputValue, option) =>
-            option.title.indexOf(inputValue) > -1
-          }
-        />
-      </Modal>
+            <Form.Item
+              label="描述"
+              name="description"
+            >
+              <TextArea 
+                placeholder="请输入用户组描述（可选）" 
+                rows={3}
+                maxLength={200}
+                showCount
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="允许访问的海关编码"
+              name="allowed_customs_codes"
+              extra="不选择表示可以访问所有海关编码，此权限与用户直接权限叠加"
+            >
+              <Select
+                mode="multiple"
+                placeholder="请选择海关编码（可选）"
+                style={{ width: '100%' }}
+                showSearch
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                }
+              >
+                {customsCodes.map(code => (
+                  <Option key={code} value={code}>
+                    {code}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
+
+      {/* 管理用户组成员模态框 - 只有拥有用户组管理权限的用户才能看到 */}
+      {hasPermission(PERMISSIONS.GROUP_MANAGE) && (
+        <Modal
+          title={`管理用户组成员 - ${selectedGroup?.name}`}
+          open={userModalVisible}
+          onCancel={() => setUserModalVisible(false)}
+          footer={[
+            <Button key="cancel" onClick={() => setUserModalVisible(false)}>
+              取消
+            </Button>,
+            <Button key="submit" type="primary" onClick={handleSaveUserChanges}>
+              保存更改
+            </Button>
+          ]}
+          width={700}
+        >
+          <div style={{ marginBottom: '16px' }}>
+            <p>左侧为所有用户，右侧为当前用户组成员。拖拽或点击箭头来调整成员。</p>
+          </div>
+          <Transfer
+            dataSource={transferData}
+            targetKeys={targetKeys}
+            onChange={handleUserTransferChange}
+            render={item => item.title}
+            titles={['所有用户', '用户组成员']}
+            listStyle={{
+              width: 300,
+              height: 400,
+            }}
+            showSearch
+            filterOption={(inputValue, option) =>
+              option.title.indexOf(inputValue) > -1
+            }
+          />
+        </Modal>
+      )}
     </div>
   );
 };

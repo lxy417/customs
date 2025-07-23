@@ -6,8 +6,11 @@ from pathlib import Path
 def setup_logging():
     """设置日志配置"""
     
-    # 创建日志目录
-    log_dir = Path("logs")
+    # 获取项目根目录（backend目录）
+    # 从当前文件位置向上两级到达backend目录
+    current_file = Path(__file__)
+    backend_dir = current_file.parent.parent.parent  # app/config -> app -> backend
+    log_dir = backend_dir / "logs"
     log_dir.mkdir(exist_ok=True)
     
     # 日志配置
@@ -38,7 +41,7 @@ def setup_logging():
                 'class': 'logging.handlers.RotatingFileHandler',
                 'level': 'DEBUG',
                 'formatter': 'detailed',
-                'filename': 'logs/app.log',
+                'filename': str(log_dir / 'app.log'),  # 使用绝对路径
                 'maxBytes': 10485760,  # 10MB
                 'backupCount': 5,
                 'encoding': 'utf8'
@@ -47,7 +50,7 @@ def setup_logging():
                 'class': 'logging.handlers.RotatingFileHandler',
                 'level': 'ERROR',
                 'formatter': 'detailed',
-                'filename': 'logs/error.log',
+                'filename': str(log_dir / 'error.log'),  # 使用绝对路径
                 'maxBytes': 10485760,  # 10MB
                 'backupCount': 5,
                 'encoding': 'utf8'
@@ -56,7 +59,7 @@ def setup_logging():
                 'class': 'logging.handlers.RotatingFileHandler',
                 'level': 'INFO',
                 'formatter': 'detailed',
-                'filename': 'logs/import.log',
+                'filename': str(log_dir / 'import.log'),  # 使用绝对路径
                 'maxBytes': 10485760,  # 10MB
                 'backupCount': 5,
                 'encoding': 'utf8'

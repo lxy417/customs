@@ -15,11 +15,15 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { roleAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { usePermissions, PERMISSIONS } from '../utils/permissions';
 
 const { Option } = Select;
 const { TextArea } = Input;
 
 const RoleManagement = () => {
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions(user);
   const [roles, setRoles] = useState([]);
   const [availablePermissions, setAvailablePermissions] = useState({});
   const [loading, setLoading] = useState(false);
@@ -29,6 +33,7 @@ const RoleManagement = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [form] = Form.useForm();
 
+  // 组件挂载时加载数据
   useEffect(() => {
     fetchRoles();
     fetchAvailablePermissions();
@@ -146,7 +151,8 @@ const RoleManagement = () => {
           >
             查看
           </Button>
-          {!record.is_system && (
+          {/* 只有拥有角色管理权限的用户才能编辑和删除角色 */}
+          {hasPermission(PERMISSIONS.ROLE_MANAGE) && !record.is_system && (
             <>
               <Button
                 type="link"
@@ -179,13 +185,16 @@ const RoleManagement = () => {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreate}
-        >
-          创建角色
-        </Button>
+        {/* 只有拥有角色管理权限的用户才能创建角色 */}
+        {hasPermission(PERMISSIONS.ROLE_MANAGE) && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleCreate}
+          >
+            创建角色
+          </Button>
+        )}
       </div>
 
       <Table
@@ -200,67 +209,69 @@ const RoleManagement = () => {
         }}
       />
 
-      {/* 创建/编辑角色模态框 */}
-      <Modal
-        title={editingRole ? '编辑角色' : '创建角色'}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
+      {/* 创建/编辑角色模态框 - 只有拥有角色管理权限的用户才能看到 */}
+      {hasPermission(PERMISSIONS.ROLE_MANAGE) && (
+        <Modal
+          title={editingRole ? '编辑角色' : '创建角色'}
+          open={modalVisible}
+          onCancel={() => setModalVisible(false)}
+          footer={null}
+          width={600}
         >
-          <Form.Item
-            name="name"
-            label="角色名称"
-            rules={[{ required: true, message: '请输入角色名称' }]}
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
           >
-            <Input placeholder="请输入角色名称" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="角色描述"
-          >
-            <TextArea
-              rows={3}
-              placeholder="请输入角色描述"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="permissions"
-            label="角色权限"
-            rules={[{ required: true, message: '请选择角色权限' }]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="请选择角色权限"
-              style={{ width: '100%' }}
+            <Form.Item
+              name="name"
+              label="角色名称"
+              rules={[{ required: true, message: '请输入角色名称' }]}
             >
-              {Object.entries(availablePermissions).map(([key, value]) => (
-                <Option key={key} value={key}>
-                  {value}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+              <Input placeholder="请输入角色名称" />
+            </Form.Item>
 
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                {editingRole ? '更新' : '创建'}
-              </Button>
-              <Button onClick={() => setModalVisible(false)}>
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Form.Item
+              name="description"
+              label="角色描述"
+            >
+              <TextArea
+                rows={3}
+                placeholder="请输入角色描述"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="permissions"
+              label="角色权限"
+              rules={[{ required: true, message: '请选择角色权限' }]}
+            >
+              <Select
+                mode="multiple"
+                placeholder="请选择角色权限"
+                style={{ width: '100%' }}
+              >
+                {Object.entries(availablePermissions).map(([key, value]) => (
+                  <Option key={key} value={key}>
+                    {value}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  {editingRole ? '更新' : '创建'}
+                </Button>
+                <Button onClick={() => setModalVisible(false)}>
+                  取消
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
       {/* 角色详情模态框 */}
       <Modal
