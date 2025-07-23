@@ -61,9 +61,9 @@ const Login = () => {
                 <Button type="primary" htmlType="submit" loading={loading} block>
                   登录
                 </Button>
-                <div style={{ textAlign: 'center', fontSize: '12px', color: '#999' }}>
+                {/* <div style={{ textAlign: 'center', fontSize: '12px', color: '#999' }}>
                   默认管理员账号: admin / admin123
-                </div>
+                </div> */}
               </Space>
             </Form.Item>
           </Form>
