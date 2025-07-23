@@ -5,7 +5,7 @@
     height: 100%;
   }
 }
-.ad-body .ant-spin-nested-loading{
+.ad-body-table .ant-spin-nested-loading{
   height: 100%;
   .ant-spin-container{
     display: flex;

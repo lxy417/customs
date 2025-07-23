@@ -670,7 +670,7 @@ const DataQuery = () => {
         <div  style={{height:"100%",flex:3,width:0}}>
           <div className="table-1" style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
             <Spin style={{height:"100%"}} spinning={loading} tip="数据加载中...">
-              <div className="ad-body" style={{height:"100%"}}>
+              <div className="ad-body-table" style={{height:"100%"}}>
                 <Table
                   columns={columns}
                   dataSource={dataSource.map((item, index) => ({ ...item, key: index }))}
