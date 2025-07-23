@@ -513,7 +513,7 @@ const DataQuery = () => {
   ];
 
   return (
-    <div className="data-query-page">
+    <div className="data-query-page" style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
         <Title level={2}>海关数据查询</Title>
         <Space size="middle">
@@ -533,10 +533,11 @@ const DataQuery = () => {
         </Space>
       </div>
       
-      <div style={{ display:"flex", height:"calc(100vh - 200px)" }} >
+      <div style={{ display:"flex", height:"0" ,flex:1}} >
         <div style={{height: "100%",flex:1,marginRight:16 }} >
           <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
             <Form
+              style={{height:"100%", overflowY:"auto", overflowX:"hidden"}}
               form={form}
               layout="vertical"
               onFinish={handleSearch}
@@ -667,9 +668,9 @@ const DataQuery = () => {
           </div>
         </div>
         <div  style={{height:"100%",flex:3,width:0}}>
-          <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
-            <Spin spinning={loading} tip="数据加载中...">
-              <div className="ad-body">
+          <div className="table-1" style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
+            <Spin style={{height:"100%"}} spinning={loading} tip="数据加载中...">
+              <div className="ad-body" style={{height:"100%"}}>
                 <Table
                   columns={columns}
                   dataSource={dataSource.map((item, index) => ({ ...item, key: index }))}
@@ -677,7 +678,8 @@ const DataQuery = () => {
                   onChange={handleTableChange}
                   size="middle"
                   bordered
-                  scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
+                  scroll={{ x: 'max-content', y: 'calc(100% - 40px)' }}
+                  style={{height:"100%"}}
                 />
               </div> 
             </Spin>

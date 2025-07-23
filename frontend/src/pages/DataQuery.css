@@ -1,4 +1,28 @@
-.ad-body .ant-table-body > table {
-  /* 你的样式规则 */
-  min-height: calc(100vh - 350px);
-} 
+
+.table-1 > .ant-spin-nested-loading {
+  height: 100%;
+  > .ant-spin-container{
+    height: 100%;
+  }
+}
+.ad-body .ant-spin-nested-loading{
+  height: 100%;
+  .ant-spin-container{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    .ant-table{
+      flex: 1;
+      height: 0px;
+      .ant-table-container{
+        height: 100%;
+        /* .ant-table-body{
+          height: 100%;
+        } */
+      }
+    }
+  }
+}  
+.ant-pagination {
+  height: 0px;
+}

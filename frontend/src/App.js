@@ -23,8 +23,8 @@ function App() {
   return (
     <Layout className="site-layout" style={{ minHeight: '100vh' }}>
       {isAuthenticated && <Header />}
-      <Content className={`content-container ${isAuthenticated && !isLoginPage ? 'content-authenticated' : 'content-unauthenticated'}`}>
-        <Routes>
+      <Content style={{height: "100vh"}} className={`content-container ${isAuthenticated && !isLoginPage ? 'content-authenticated' : 'content-unauthenticated'}`}>
+        <Routes> 
           {/* 登录页面 - 如果已登录则重定向到首页 */}
           <Route 
             path="/login" 
@@ -85,7 +85,7 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Content>
-      <Footer style={{ textAlign: 'center' }}>精算平台 ©{new Date().getFullYear()} Created with React & Ant Design</Footer>
+      {/* <Footer style={{ textAlign: 'center' }}>精算平台 ©{new Date().getFullYear()} Created with React & Ant Design</Footer> */}
     </Layout>
   );
 }
