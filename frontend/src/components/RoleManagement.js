@@ -11,13 +11,15 @@ import {
   Tag,
   Space,
   Card,
-  Descriptions
+  Descriptions,
+  Typography
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { roleAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions, PERMISSIONS } from '../utils/permissions';
 
+const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -184,7 +186,10 @@ const RoleManagement = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={4} style={{ margin: 0 }}>
+          角色列表
+        </Title>
         {/* 只有拥有角色管理权限的用户才能创建角色 */}
         {hasPermission(PERMISSIONS.ROLE_MANAGE) && (
           <Button

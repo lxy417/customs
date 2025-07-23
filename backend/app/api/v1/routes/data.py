@@ -69,8 +69,13 @@ async def bulk_delete_by_condition(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """按条件批量删除海关数据（仅管理员）"""
+    logger.info(f"管理员 {current_user.username} 请求按条件批量删除海关数据")
+    logger.info(f"删除条件: {query_params}")
+    
     try:
-        return data_service.bulk_delete_by_condition(query_params)
+        result = data_service.bulk_delete_by_condition(query_params)
+        logger.info(f"按条件批量删除完成: 删除了 {result.get('deleted', 0)} 条记录")
+        return result
     except Exception as e:
         logger.error(f"按条件批量删除海关数据失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"按条件批量删除海关数据失败: {str(e)}")
@@ -97,12 +102,18 @@ async def export_customs_data(
     allowed_customs_codes: Optional[List[str]] = None
 ):
     """导出海关数据，最多2000条（需要数据导出权限，自动过滤海关编码）"""
+    logger.info(f"用户 {current_user.username} 请求导出海关数据")
+    logger.info(f"导出条件: {query_params}")
+    
     try:
         # 如果用户不是管理员，添加海关编码过滤
         if allowed_customs_codes is not None:
             query_params['allowed_customs_codes'] = allowed_customs_codes
+            logger.info(f"用户 {current_user.username} 的海关编码权限: {allowed_customs_codes}")
         
-        return data_service.export_customs_data(query_params)
+        result = data_service.export_customs_data(query_params)
+        logger.info(f"导出完成: 总计 {result.get('total', 0)} 条，实际导出 {result.get('exported', 0)} 条")
+        return result
     except Exception as e:
         logger.error(f"数据导出失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"数据导出失败: {str(e)}")
@@ -128,6 +139,8 @@ async def search_customs_data(
     allowed_customs_codes: Optional[List[str]] = None
 ):
     """查询海关数据，支持多条件过滤、分页、排序和模糊查询（需要数据查看权限，自动过滤海关编码）"""
+    logger.info(f"用户 {current_user.username} 请求查询海关数据")
+    
     # 构建查询参数
     query_params = {
         'customs_code': customs_code,
@@ -148,9 +161,14 @@ async def search_customs_data(
     # 如果用户不是管理员，添加海关编码过滤
     if allowed_customs_codes is not None:
         query_params['allowed_customs_codes'] = allowed_customs_codes
+        logger.info(f"用户 {current_user.username} 的海关编码权限: {allowed_customs_codes}")
+    
+    logger.info(f"查询条件: {query_params}")
     
     try:
-        return data_service.search_customs_data_with_fuzzy(query_params)
+        result = data_service.search_customs_data_with_fuzzy(query_params)
+        logger.info(f"查询完成: 总计 {result.get('total', 0)} 条，返回第 {result.get('page', 1)} 页，共 {len(result.get('data', []))} 条")
+        return result
     except Exception as e:
         logger.error(f"数据查询失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"数据查询失败: {str(e)}")

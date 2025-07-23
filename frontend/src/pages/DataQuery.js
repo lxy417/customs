@@ -245,16 +245,19 @@ const DataQuery = () => {
       setLoading(true);
       if (deleteAll) {
         // 删除所有符合当前搜索条件的记录
-        // 处理日期范围参数
         const formValues = form.getFieldsValue();
-        const params = {...formValues};
-        
-        // 如果有日期范围，拆分并格式化
-        if (formValues.日期 && formValues.日期[0]) {
-          params.start_date = formValues.日期[0].format('YYYY-MM-DD');
-          params.end_date = formValues.日期[1] ? formValues.日期[1].format('YYYY-MM-DD') : formValues.日期[0].format('YYYY-MM-DD');
-          delete params.日期; // 删除原始日期范围字段
-        }
+        // 使用与搜索相同的参数格式化逻辑
+        const params = {
+          ...formValues,
+          // 日期范围格式化
+          start_date: formValues.date_range?.[0]?.format('YYYY-MM-DD'),
+          end_date: formValues.date_range?.[1]?.format('YYYY-MM-DD'),
+          // 添加模糊查询参数
+          fuzzy_importer: fuzzySearch.importer,
+          fuzzy_exporter: fuzzySearch.exporter,
+          // 移除date_range属性
+          date_range: undefined
+        };
         
         await dataAPI.bulkDeleteByCondition(params);
         message.success('所有符合条件的记录已删除');
@@ -329,20 +332,25 @@ const DataQuery = () => {
     try {
       setLoading(true);
       const values = form.getFieldsValue();
-      // 构建导出参数，包含所有查询条件
+      // 构建导出参数，使用与搜索相同的参数格式化逻辑
       const exportParams = {
         ...values,
+        // 日期范围格式化
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
+        // 添加模糊查询参数
+        fuzzy_importer: fuzzySearch.importer,
+        fuzzy_exporter: fuzzySearch.exporter,
+        // 移除date_range属性
         date_range: undefined,
-        // 移除分页参数，由后端控制最大导出数量
+        // 添加排序参数（导出时不需要分页参数）
         sort_by: sorter.field || '日期',
         sort_order: sorter.order === 'ascend' ? 'asc' : 'desc'
       };
 
       // 调用API导出数据
       const response = await dataAPI.export(exportParams);
-      const jsonData = response.data; // 假设你的JSON数据在 response.data.data 中
+      const jsonData = response.data;
 
       if (!jsonData || jsonData.length === 0) {
         throw Error('没有可导出的数据');

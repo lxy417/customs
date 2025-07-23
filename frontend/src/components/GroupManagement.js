@@ -92,11 +92,7 @@ const GroupManagement = () => {
     const isCurrentUserAdmin = currentUser?.is_admin || currentUser?.role_id === 'admin';
     
     if (!codes || codes.length === 0) {
-      if (isCurrentUserAdmin) {
-        return <span style={{ color: '#999' }}>无限制</span>;
-      } else {
-        return <span style={{ color: '#999' }}>无</span>;
-      }
+      return <span style={{ color: '#999' }}>无</span>;
     }
     
     return (

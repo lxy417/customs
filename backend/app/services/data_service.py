@@ -113,7 +113,6 @@ class DataService:
         else:
             logger.info(f"数据索引已存在: {self.index_name}")
 
-
     def _clean_customs_code(self, code: Any) -> str:
         """清理海关编码格式"""
         if pd.isna(code):
@@ -135,6 +134,123 @@ class DataService:
         if isinstance(value, str) and value.strip() == "":
             return False
         return True
+
+    def _build_query_conditions(self, query_params: Dict[str, Any], enable_fuzzy: bool = False) -> Dict[str, Any]:
+        """构建通用的查询条件
+        
+        Args:
+            query_params: 查询参数
+            enable_fuzzy: 是否启用模糊查询
+            
+        Returns:
+            构建好的查询条件
+        """
+        query_body = {"bool": {"must": [], "filter": []}}
+        
+        # 添加用户权限过滤（非管理员只能查看授权的海关编码）
+        if query_params.get('allowed_customs_codes'):
+            query_body["bool"]["filter"].append({
+                "terms": {"海关编码": query_params['allowed_customs_codes']}
+            })
+        
+        # 添加基本查询条件
+        if query_params.get('customs_code'):
+            query_body["bool"]["must"].append({"term": {"海关编码": query_params['customs_code']}})
+        
+        if query_params.get('import_country'):
+            query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
+        
+        if query_params.get('export_country'):
+            query_body["bool"]["must"].append({"term": {"出口商所在国家": query_params['export_country']}})
+        
+        # 日期范围查询
+        if query_params.get('start_date') or query_params.get('end_date'):
+            date_range = {}
+            if query_params.get('start_date'):
+                date_range["gte"] = query_params['start_date']
+            if query_params.get('end_date'):
+                date_range["lte"] = query_params['end_date']
+            query_body["bool"]["must"].append({"range": {"日期": date_range}})
+        
+        # 进口商查询（支持模糊查询）
+        if query_params.get('importer'):
+            importer_query = query_params['importer']
+            fuzzy_importer = query_params.get('fuzzy_importer', enable_fuzzy)
+            
+            if fuzzy_importer:
+                # 使用模糊查询
+                query_body["bool"]["must"].append({
+                    "bool": {
+                        "should": [
+                            {"wildcard": {"进口商": f"*{importer_query}*"}},
+                            {"match": {"进口商.text": {"query": importer_query, "fuzziness": "AUTO"}}},
+                            {"match_phrase": {"进口商.text": {"query": importer_query}}}
+                        ],
+                        "minimum_should_match": 1
+                    }
+                })
+            else:
+                # 精确查询
+                query_body["bool"]["must"].append({"term": {"进口商": importer_query}})
+        
+        # 出口商查询（支持模糊查询）
+        if query_params.get('exporter'):
+            exporter_query = query_params['exporter']
+            fuzzy_exporter = query_params.get('fuzzy_exporter', enable_fuzzy)
+            
+            if fuzzy_exporter:
+                # 使用模糊查询
+                query_body["bool"]["must"].append({
+                    "bool": {
+                        "should": [
+                            {"wildcard": {"出口商": f"*{exporter_query}*"}},
+                            {"match": {"出口商.text": {"query": exporter_query, "fuzziness": "AUTO"}}},
+                            {"match_phrase": {"出口商.text": {"query": exporter_query}}}
+                        ],
+                        "minimum_should_match": 1
+                    }
+                })
+            else:
+                # 精确查询
+                query_body["bool"]["must"].append({"term": {"出口商": exporter_query}})
+
+        # 如果没有条件，使用match_all
+        if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
+            return {"match_all": {}}
+        else:
+            return query_body
+
+    def _build_sort_conditions(self, query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """构建排序条件"""
+        sort_by = query_params.get('sort_by', '日期')
+        sort_order = query_params.get('sort_order', 'desc')
+        
+        # 定义需要使用keyword子字段进行排序的text类型字段
+        text_fields_with_keyword = ['编码产品描述', '详细产品名称']
+        
+        if sort_by in text_fields_with_keyword:
+            sort_field = f"{sort_by}.keyword"
+        else:
+            sort_field = sort_by
+            
+        return [{sort_field: {"order": sort_order}}]
+
+    def _get_default_source_fields(self) -> List[str]:
+        """获取默认的返回字段"""
+        return [
+            "海关编码", "编码产品描述", "日期", "进口商", "进口商所在国家", 
+            "出口商", "出口商所在国家", "数量单位", "数量", "公吨", 
+            "金额美元", "详细产品名称", "提单号", "数据来源", "关单号"
+        ]
+
+    def _format_search_results(self, hits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """格式化搜索结果"""
+        data = []
+        for hit in hits:
+            doc_data = hit["_source"]
+            doc_data["id"] = hit["_id"]
+            data.append(doc_data)
+        return data
 
     def create_customs_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """创建单条海关数据"""
@@ -319,35 +435,11 @@ class DataService:
     def bulk_delete_by_condition(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
         """根据条件批量删除海关数据"""
         try:
-            # 构建查询条件
-            query_body = {"bool": {"must": [], "filter": []}}
+            # 构建查询条件（不启用模糊查询，删除操作需要精确匹配）
+            query_body = self._build_query_conditions(query_params, enable_fuzzy=False)
 
-            # 添加查询条件
-            if query_params.get('customs_code'):
-                query_body["bool"]["must"].append({"term": {"海关编码": query_params['customs_code']}})
-            
-            if query_params.get('import_country'):
-                query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
-            
-            if query_params.get('export_country'):
-                query_body["bool"]["must"].append({"term": {"出口商所在国家": query_params['export_country']}})
-            
-            if query_params.get('start_date') or query_params.get('end_date'):
-                date_range = {}
-                if query_params.get('start_date'):
-                    date_range["gte"] = query_params['start_date']
-                if query_params.get('end_date'):
-                    date_range["lte"] = query_params['end_date']
-                query_body["bool"]["must"].append({"range": {"日期": date_range}})
-            
-            if query_params.get('importer'):
-                query_body["bool"]["must"].append({"term": {"进口商": query_params['importer']}})
-            
-            if query_params.get('exporter'):
-                query_body["bool"]["must"].append({"term": {"出口商": query_params['exporter']}})
-
-            # 如果没有条件，不执行删除操作
-            if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
+            # 删除操作必须有条件，不能删除所有数据
+            if query_body.get("match_all"):
                 raise ValueError("删除条件不能为空")
 
             # 执行删除操作
@@ -355,7 +447,7 @@ class DataService:
                 index=self.index_name,
                 query=query_body,
                 conflicts="proceed",
-                refresh=True  # 修复：使用布尔值而不是字符串
+                refresh=True
             )
 
             logger.info(f"按条件批量删除海关数据成功: {response['deleted']}条记录")
@@ -440,74 +532,26 @@ class DataService:
     def export_customs_data(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
         """根据条件导出海关数据，最多2000条"""
         try:
-            # 构建查询条件
-            query_body = {"bool": {"must": [], "filter": []}}
-
-            # 添加查询条件
-            if query_params.get('customs_code'):
-                query_body["bool"]["must"].append({"term": {"海关编码": query_params['customs_code']}})
+            # 构建查询条件（不启用模糊查询，导出需要精确数据）
+            query_body = self._build_query_conditions(query_params, enable_fuzzy=False)
             
-            if query_params.get('import_country'):
-                query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
-            
-            if query_params.get('export_country'):
-                query_body["bool"]["must"].append({"term": {"出口商所在国家": query_params['export_country']}})
-            
-            if query_params.get('start_date') or query_params.get('end_date'):
-                date_range = {}
-                if query_params.get('start_date'):
-                    date_range["gte"] = query_params['start_date']
-                if query_params.get('end_date'):
-                    date_range["lte"] = query_params['end_date']
-                query_body["bool"]["must"].append({"range": {"日期": date_range}})
-            
-            if query_params.get('importer'):
-                query_body["bool"]["must"].append({"term": {"进口商": query_params['importer']}})
-            
-            if query_params.get('exporter'):
-                query_body["bool"]["must"].append({"term": {"出口商": query_params['exporter']}})
-
-            # 如果没有条件，使用match_all
-            if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
-                final_query_body = {"match_all": {}}
-            else:
-                final_query_body = query_body
-
-            # 处理排序
-            sort_by = query_params.get('sort_by', '日期')
-            sort_order = query_params.get('sort_order', 'desc')
-            
-            # 定义需要使用keyword子字段进行排序的text类型字段
-            text_fields_with_keyword = ['编码产品描述', '详细产品名称']
-            
-            if sort_by in text_fields_with_keyword:
-                sort_field = f"{sort_by}.keyword"
-            else:
-                sort_field = sort_by
-                
-            sort = [{sort_field: {"order": sort_order}}]
+            # 构建排序条件
+            sort = self._build_sort_conditions(query_params)
 
             # 执行查询，限制最多2000条
             response = self.es_client.search(
                 index=self.index_name,
-                query=final_query_body,
+                query=query_body,
                 sort=sort,
                 size=2000,  # 限制最多2000条
-                _source=[
-                    "海关编码", "编码产品描述", "日期", "进口商", "进口商所在国家", 
-                    "出口商", "出口商所在国家", "数量单位", "数量", "公吨", 
-                    "金额美元", "详细产品名称", "提单号", "数据来源", "关单号"
-                ]
+                _source=self._get_default_source_fields()
             )
 
             total = response["hits"]["total"]["value"]
             hits = response["hits"]["hits"]
             
-            data = []
-            for hit in hits:
-                doc_data = hit["_source"]
-                doc_data["id"] = hit["_id"]
-                data.append(doc_data)
+            # 格式化结果
+            data = self._format_search_results(hits)
             
             return {
                 "total": total,
@@ -521,94 +565,11 @@ class DataService:
     def search_customs_data_with_fuzzy(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
         """支持模糊查询的海关数据搜索"""
         try:
-            # 构建查询条件
-            query_body = {"bool": {"must": [], "filter": []}}
+            # 构建查询条件，使用前端传递的模糊搜索参数
+            query_body = self._build_query_conditions(query_params, enable_fuzzy=False)
             
-            # 添加用户权限过滤（非管理员只能查看授权的海关编码）
-            if query_params.get('allowed_customs_codes'):
-                query_body["bool"]["filter"].append({
-                    "terms": {"海关编码": query_params['allowed_customs_codes']}
-                })
-            
-            # 添加查询条件
-            if query_params.get('customs_code'):
-                query_body["bool"]["must"].append({"term": {"海关编码": query_params['customs_code']}})
-            
-            if query_params.get('import_country'):
-                query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
-            
-            if query_params.get('export_country'):
-                query_body["bool"]["must"].append({"term": {"出口商所在国家": query_params['export_country']}})
-            
-            if query_params.get('start_date') or query_params.get('end_date'):
-                date_range = {}
-                if query_params.get('start_date'):
-                    date_range["gte"] = query_params['start_date']
-                if query_params.get('end_date'):
-                    date_range["lte"] = query_params['end_date']
-                query_body["bool"]["must"].append({"range": {"日期": date_range}})
-            
-            # 进口商模糊查询 - 默认开启模糊搜索
-            if query_params.get('importer'):
-                importer_query = query_params['importer']
-                fuzzy_importer = query_params.get('fuzzy_importer', True)  # 默认为True
-                
-                if fuzzy_importer:
-                    # 使用模糊查询
-                    query_body["bool"]["must"].append({
-                        "bool": {
-                            "should": [
-                                {"wildcard": {"进口商": f"*{importer_query}*"}},
-                                {"match": {"进口商.text": {"query": importer_query, "fuzziness": "AUTO"}}},
-                                {"match_phrase": {"进口商.text": {"query": importer_query}}}
-                            ],
-                            "minimum_should_match": 1
-                        }
-                    })
-                else:
-                    # 精确查询
-                    query_body["bool"]["must"].append({"term": {"进口商": importer_query}})
-            
-            # 出口商模糊查询 - 默认开启模糊搜索
-            if query_params.get('exporter'):
-                exporter_query = query_params['exporter']
-                fuzzy_exporter = query_params.get('fuzzy_exporter', True)  # 默认为True
-                
-                if fuzzy_exporter:
-                    # 使用模糊查询
-                    query_body["bool"]["must"].append({
-                        "bool": {
-                            "should": [
-                                {"wildcard": {"出口商": f"*{exporter_query}*"}},
-                                {"match": {"出口商.text": {"query": exporter_query, "fuzziness": "AUTO"}}},
-                                {"match_phrase": {"出口商.text": {"query": exporter_query}}}
-                            ],
-                            "minimum_should_match": 1
-                        }
-                    })
-                else:
-                    # 精确查询
-                    query_body["bool"]["must"].append({"term": {"出口商": exporter_query}})
-
-            # 如果没有条件，使用match_all
-            if not query_body["bool"]["must"] and not query_body["bool"]["filter"]:
-                final_query_body = {"match_all": {}}
-            else:
-                final_query_body = query_body
-
-            # 处理排序 - 为text类型字段自动添加.keyword后缀
-            sort_by = query_params.get('sort_by', '日期')
-            sort_order = query_params.get('sort_order', 'desc')
-            
-            # 定义需要使用keyword子字段进行排序的text类型字段
-            text_fields_with_keyword = ['编码产品描述', '详细产品名称']
-            
-            if sort_by in text_fields_with_keyword:
-                sort_field = f"{sort_by}.keyword"
-            else:
-                sort_field = sort_by
-                
-            sort = [{sort_field: {"order": sort_order}}]
+            # 构建排序条件
+            sort = self._build_sort_conditions(query_params)
 
             # 处理分页
             page = query_params.get('page', 1)
@@ -618,25 +579,18 @@ class DataService:
             # 执行查询
             response = self.es_client.search(
                 index=self.index_name,
-                query=final_query_body,
+                query=query_body,
                 sort=sort,
                 from_=from_index,
                 size=page_size,
-                _source=[
-                    "海关编码", "编码产品描述", "日期", "进口商", "进口商所在国家", 
-                    "出口商", "出口商所在国家", "数量单位", "数量", "公吨", 
-                    "金额美元", "详细产品名称", "提单号", "数据来源", "关单号"
-                ]
+                _source=self._get_default_source_fields()
             )
 
             total = response["hits"]["total"]["value"]
             hits = response["hits"]["hits"]
             
-            data = []
-            for hit in hits:
-                doc_data = hit["_source"]
-                doc_data["id"] = hit["_id"]
-                data.append(doc_data)
+            # 格式化结果
+            data = self._format_search_results(hits)
             
             return {
                 "total": total,
