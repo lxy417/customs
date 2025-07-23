@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Form, Input, Select, DatePicker, Button, Table, Space, Typography, Card, Spin, message, Row, Col, Modal, AutoComplete } from 'antd';
 import { SearchOutlined, ReloadOutlined, DownloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { dataAPI } from '../utils/api';
+import { usePermissions, PERMISSIONS } from '../utils/permissions';
 import moment from 'moment';
 import * as XLSX from 'xlsx';
 import './DataQuery.css';
@@ -17,6 +18,7 @@ const DataQuery = () => {
   const [sorter, setSorter] = useState({});
   const location = useLocation();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions(user);
   const [countries, setCountries] = useState({ import: [], export: [] });
   const [form] = Form.useForm();
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -497,19 +499,27 @@ const DataQuery = () => {
       sorter: true,
       width: 150
     },
-    // 操作列，仅管理员可见
-    { 
-      title: '操作', 
-      key: 'action', render: (_, record) => (
+    // 操作列，根据权限显示
+    ...(hasPermission(PERMISSIONS.DATA_UPDATE) || hasPermission(PERMISSIONS.DATA_DELETE) ? [{
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
         <Space size="middle">
-          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Button danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>删除</Button>
+          {hasPermission(PERMISSIONS.DATA_UPDATE) && (
+            <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+              编辑
+            </Button>
+          )}
+          {hasPermission(PERMISSIONS.DATA_DELETE) && (
+            <Button danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
+              删除
+            </Button>
+          )}
         </Space>
-      ), 
-      width: 180, 
-      visible: user?.is_admin || false,
+      ),
+      width: 180,
       fixed: 'right',
-    }
+    }] : [])
   ];
 
   return (
@@ -517,15 +527,20 @@ const DataQuery = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
         <Title level={2}>海关数据查询</Title>
         <Space size="middle">
-          <Button icon={<DownloadOutlined />} disabled={dataSource.length === 0} size="middle" onClick={handleExport}>
-            导出
-          </Button>
-          {user?.is_admin && (
+          {/* 导出按钮 - 需要数据导出权限 */}
+          {hasPermission(PERMISSIONS.DATA_EXPORT) && (
+            <Button icon={<DownloadOutlined />} disabled={dataSource.length === 0} size="middle" onClick={handleExport}>
+              导出
+            </Button>
+          )}
+          {/* 新增数据按钮 - 需要数据创建权限 */}
+          {hasPermission(PERMISSIONS.DATA_CREATE) && (
             <Button type="primary" onClick={() => { setCurrentRecord(null); editForm.resetFields(); editForm.setFieldsValue({日期: null,});setEditModalVisible(true); }}>
               新增数据
             </Button>
           )}
-          {user?.is_admin && (
+          {/* 批量删除按钮 - 需要数据删除权限 */}
+          {hasPermission(PERMISSIONS.DATA_DELETE) && (
             <Button danger icon={<DeleteOutlined />} size="middle" onClick={handleBulkDelete} disabled={dataSource.length === 0}>
               批量删除当前结果
             </Button>
@@ -687,17 +702,19 @@ const DataQuery = () => {
         </div>
       </div>
 
-      {/* 编辑/新增数据模态框 */}
-      <Modal
-        title={currentRecord ? "编辑数据" : "新增数据"}
-        open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setEditModalVisible(false)}>取消</Button>,
-          <Button key="save" type="primary" loading={loading} onClick={handleSaveEdit}>保存</Button>
-        ]}
-        destroyOnClose
-      >
+      {/* 编辑/新增数据模态框 - 根据权限显示 */}
+      {(hasPermission(PERMISSIONS.DATA_CREATE) || hasPermission(PERMISSIONS.DATA_UPDATE)) && (
+        <Modal
+          title={currentRecord ? "编辑数据" : "新增数据"}
+          open={editModalVisible}
+          onCancel={() => setEditModalVisible(false)}
+          footer={[
+            <Button key="cancel" onClick={() => setEditModalVisible(false)}>取消</Button>,
+            <Button key="save" type="primary" loading={loading} onClick={handleSaveEdit}>保存</Button>
+          ]}
+          destroyOnClose
+          width={800}
+        >
         <Form form={editForm} layout="vertical" initialValues={currentRecord || {}}>
           <Form.Item name="海关编码" label="海关编码" rules={[{ required: true, message: '请输入海关编码' }]}>
             <Input placeholder="请输入海关编码" />
@@ -754,28 +771,30 @@ const DataQuery = () => {
           </Form.Item>
         </Form>
       </Modal>
+    )}
 
-      {/* 批量删除确认对话框 */}
-      <Modal
-        title="确认删除"
-        open={showDeleteConfirm}
-        onCancel={() => setShowDeleteConfirm(false)}
-        footer={[
-        <Button key="cancel" onClick={() => setShowDeleteConfirm(false)}>
-            取消
-          </Button>,
-          <Button key="current" type="primary" danger onClick={() => confirmDelete(false)}>
-            删除当前显示的 {dataSource.length} 条记录
-          </Button>,
-          <Button key="all" type="primary" danger onClick={() => confirmDelete(true)}>
-            删除所有符合条件的记录
-          </Button>
-        ]}
-      >
-        <p>请选择删除范围：</p>
-        <p>• 当前显示：{dataSource.length} 条记录</p>
-        <p>• 所有符合条件：将删除数据库中所有匹配当前搜索条件的记录</p>
-      </Modal>
+      {/* 批量删除确认对话框 - 根据权限显示 */}
+      {hasPermission(PERMISSIONS.DATA_DELETE) && (
+        <Modal
+          title="确认删除"
+          open={showDeleteConfirm}
+          onCancel={() => setShowDeleteConfirm(false)}
+          footer={[
+            <Button key="cancel" onClick={() => setShowDeleteConfirm(false)}>取消</Button>,
+            <Button key="current" type="primary" danger loading={loading} onClick={() => confirmDelete(false)}>
+              删除当前显示的 {dataSource.length} 条记录
+            </Button>,
+            <Button key="all" type="primary" danger loading={loading} onClick={() => confirmDelete(true)}>
+              删除所有符合条件的记录
+            </Button>
+          ]}
+        >
+          <p>请选择删除范围：</p>
+          <p>• <strong>删除当前显示的记录</strong>：仅删除当前页面显示的 {dataSource.length} 条记录</p>
+          <p>• <strong>删除所有符合条件的记录</strong>：删除所有符合当前搜索条件的记录（可能包含多页数据）</p>
+          <p style={{color: 'red', fontWeight: 'bold'}}>⚠️ 此操作不可撤销，请谨慎选择！</p>
+        </Modal>
+      )}
     </div>
   );
 };
