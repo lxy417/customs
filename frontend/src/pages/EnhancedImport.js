@@ -415,7 +415,9 @@ const EnhancedImport = () => {
           >
             详情
           </Button>
-          {record.status === 'completed' && (record.success_count || record.successful_count || 0) > 0 && record.rollback_status !== 'completed' && (
+          {record.status === 'completed' &&
+           (record.success_count || 0) > 0 && 
+          record.rollback_status !== 'none' && record.rollback_status !== 'completed' && (
             <Button 
               type="link" 
               size="small"
