@@ -36,6 +36,7 @@ const ConfigManagement = () => {
   const [systemConfigs, setSystemConfigs] = useState([]);
   const [roleConfigs, setRoleConfigs] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [configTypes, setConfigTypes] = useState({}); // 新增：配置类型元数据
   const [modalVisible, setModalVisible] = useState(false);
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [editingConfig, setEditingConfig] = useState(null);
@@ -47,22 +48,28 @@ const ConfigManagement = () => {
   const canManage = hasPermission(PERMISSIONS.CONFIG_MANAGE);
   const canView = hasPermission(PERMISSIONS.CONFIG_VIEW);
 
-  // 配置类型定义
-  const CONFIG_TYPES = {
-    'export_limit': { label: '默认导出条数限制', type: 'number', min: -1, description: '用户默认可导出的数据条数，-1表示不限制' },
-    'export_max_limit': { label: '最大导出条数限制', type: 'number', min: -1, description: '用户最多可导出的数据条数，-1表示不限制' },
-    'import_batch_size': { label: '导入批次大小', type: 'number', min: 1, description: '数据导入时每批次处理的记录数' },
-    'session_timeout': { label: '会话超时时间(分钟)', type: 'number', min: 1, description: '用户会话的超时时间' },
-    'max_search_results': { label: '最大搜索结果数', type: 'number', min: 1, description: '搜索时返回的最大结果数量' }
-  };
+  // 移除硬编码的CONFIG_TYPES
+  // const CONFIG_TYPES = { ... };
 
   useEffect(() => {
     if (canView) {
+      fetchConfigTypes(); // 新增：获取配置类型
       fetchSystemConfigs();
       fetchRoleConfigs();
       fetchRoles();
     }
   }, [canView]);
+
+  // 新增：获取配置类型元数据
+  const fetchConfigTypes = async () => {
+    try {
+      const response = await configAPI.getConfigTypes();
+      setConfigTypes(response);
+    } catch (error) {
+      console.error('获取配置类型失败:', error);
+      message.error('获取配置类型失败');
+    }
+  };
 
   // 获取系统配置
   const fetchSystemConfigs = async () => {
@@ -160,21 +167,21 @@ const ConfigManagement = () => {
     }
   };
 
-  // 系统配置表格列
+  // 更新系统配置表格列，使用动态获取的配置类型
   const systemColumns = [
     {
       title: '配置项',
       dataIndex: 'config_key',
       key: 'config_key',
-      render: (key) => CONFIG_TYPES[key]?.label || key
+      render: (key) => configTypes[key]?.label || key
     },
     {
       title: '配置值',
       dataIndex: 'config_value',
       key: 'config_value',
       render: (value, record) => {
-        const configType = CONFIG_TYPES[record.config_key];
-        if (configType?.type === 'number' && value === -1) {
+        const configType = configTypes[record.config_key];
+        if (configType?.type === 'number' && value === '-1') {
           return <span style={{ color: '#52c41a' }}>不限制</span>;
         }
         return value;
@@ -184,7 +191,7 @@ const ConfigManagement = () => {
       title: '描述',
       dataIndex: 'config_key',
       key: 'description',
-      render: (key) => CONFIG_TYPES[key]?.description || '-'
+      render: (key) => configTypes[key]?.description || '-'
     },
     {
       title: '更新时间',
@@ -213,7 +220,7 @@ const ConfigManagement = () => {
     }] : [])
   ];
 
-  // 角色配置表格列
+  // 更新角色配置表格列
   const roleColumns = [
     {
       title: '角色',
@@ -228,15 +235,15 @@ const ConfigManagement = () => {
       title: '配置项',
       dataIndex: 'config_key',
       key: 'config_key',
-      render: (key) => CONFIG_TYPES[key]?.label || key
+      render: (key) => configTypes[key]?.label || key
     },
     {
       title: '配置值',
       dataIndex: 'config_value',
       key: 'config_value',
       render: (value, record) => {
-        const configType = CONFIG_TYPES[record.config_key];
-        if (configType?.type === 'number' && value === -1) {
+        const configType = configTypes[record.config_key];
+        if (configType?.type === 'number' && value === '-1') {
           return <span style={{ color: '#52c41a' }}>不限制</span>;
         }
         return value;
@@ -254,7 +261,7 @@ const ConfigManagement = () => {
       render: (_, record) => (
         <Space>
           <Popconfirm
-            title="确定要删除这个角色配置吗？"
+            title="确定删除这个角色配置覆盖吗？"
             onConfirm={() => handleDeleteRoleConfig(record.role_id, record.config_key)}
             okText="确定"
             cancelText="取消"
@@ -372,7 +379,7 @@ const ConfigManagement = () => {
             rules={[{ required: true, message: '请选择配置项' }]}
           >
             <Select placeholder="选择配置项" disabled={!!editingConfig}>
-              {Object.entries(CONFIG_TYPES).map(([key, config]) => (
+              {Object.entries(configTypes).map(([key, config]) => (
                 <Option key={key} value={key}>
                   {config.label}
                   <Tooltip title={config.description}>
@@ -391,7 +398,14 @@ const ConfigManagement = () => {
             <InputNumber
               style={{ width: '100%' }}
               placeholder="输入配置值"
-              min={-1}
+              min={(() => {
+                const configKey = form.getFieldValue('config_key');
+                return configKey && configTypes[configKey] ? configTypes[configKey].min : -1;
+              })()}
+              max={(() => {
+                const configKey = form.getFieldValue('config_key');
+                return configKey && configTypes[configKey] ? configTypes[configKey].max : undefined;
+              })()}
             />
           </Form.Item>
 
@@ -449,7 +463,7 @@ const ConfigManagement = () => {
             rules={[{ required: true, message: '请选择配置项' }]}
           >
             <Select placeholder="选择配置项">
-              {Object.entries(CONFIG_TYPES).map(([key, config]) => (
+              {Object.entries(configTypes).map(([key, config]) => (
                 <Option key={key} value={key}>
                   {config.label}
                   <Tooltip title={config.description}>
@@ -468,7 +482,14 @@ const ConfigManagement = () => {
             <InputNumber
               style={{ width: '100%' }}
               placeholder="输入配置值"
-              min={-1}
+              min={(() => {
+                const configKey = roleForm.getFieldValue('config_key');
+                return configKey && configTypes[configKey] ? configTypes[configKey].min : -1;
+              })()}
+              max={(() => {
+                const configKey = roleForm.getFieldValue('config_key');
+                return configKey && configTypes[configKey] ? configTypes[configKey].max : undefined;
+              })()}
             />
           </Form.Item>
 

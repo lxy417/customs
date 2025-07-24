@@ -208,3 +208,22 @@ async def get_user_effective_configs(
     except Exception as e:
         logger.error(f"获取用户有效配置失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取用户配置失败")
+
+# 在现有路由之前添加新的路由
+@router.get("/types", response_model=Dict[str, Any], tags=["系统配置"])
+@require_permissions([Permissions.CONFIG_VIEW])
+async def get_config_types(
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """获取配置类型元数据"""
+    try:
+        config_service = ConfigService()
+        metadata = config_service.get_config_types_metadata()
+        logger.info(f"用户 {current_user.username} 获取配置类型元数据")
+        return metadata
+    except Exception as e:
+        logger.error(f"获取配置类型失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取配置类型失败"
+        )

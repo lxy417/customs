@@ -51,31 +51,45 @@ DEFAULT_SYSTEM_CONFIGS = {
     "export_limit": {
         "config_value": "2000",
         "config_type": "number",
-        "description": "数据导出条数限制，设置为-1表示不限制",
+        "description": "用户默认可导出的数据条数，-1表示不限制",
         "category": "export",
-        "is_editable": True
+        "is_editable": True,
+        "label": "默认导出条数限制",
+        "min_value": -1,
+        "max_value": None,
+        "validation_rules": {
+            "min": -1,
+            "error_message": "导出限制不能小于-1"
+        }
     },
     "export_max_limit": {
         "config_value": "50000",
         "config_type": "number", 
-        "description": "数据导出最大条数限制（安全上限）",
+        "description": "用户最多可导出的数据条数，-1表示不限制",
         "category": "export",
-        "is_editable": True
+        "is_editable": True,
+        "label": "最大导出条数限制",
+        "min_value": -1,
+        "max_value": None,
+        "validation_rules": {
+            "min": -1,
+            "error_message": "导出最大限制不能小于-1"
+        }
     },
-    "import_batch_size": {
-        "config_value": "500",
-        "config_type": "number",
-        "description": "数据导入批次大小",
-        "category": "import",
-        "is_editable": True
-    },
-    "search_page_size": {
-        "config_value": "20",
-        "config_type": "number",
-        "description": "搜索结果每页显示条数",
-        "category": "system",
-        "is_editable": True
-    }
+    # "import_batch_size": {
+    #     "config_value": "500",
+    #     "config_type": "number",
+    #     "description": "数据导入批次大小",
+    #     "category": "import",
+    #     "is_editable": True
+    # },
+    # "search_page_size": {
+    #     "config_value": "20",
+    #     "config_type": "number",
+    #     "description": "搜索结果每页显示条数",
+    #     "category": "system",
+    #     "is_editable": True
+    # }
 }
 
 class ConfigService:
@@ -99,6 +113,10 @@ class ConfigService:
                         "description": {"type": "text"},
                         "category": {"type": "keyword"},
                         "is_editable": {"type": "boolean"},
+                        "label": {"type": "text"},
+                        "min_value": {"type": "integer"},
+                        "max_value": {"type": "integer"},
+                        "validation_rules": {"type": "object"},
                         "created_at": {"type": "date"},
                         "updated_at": {"type": "date"}
                     }
@@ -136,6 +154,10 @@ class ConfigService:
                     "description": config_data["description"],
                     "category": config_data["category"],
                     "is_editable": config_data["is_editable"],
+                    "label": config_data.get("label", config_key),
+                    "min_value": config_data.get("min_value"),
+                    "max_value": config_data.get("max_value"),
+                    "validation_rules": config_data.get("validation_rules", {}),
                     "created_at": now,
                     "updated_at": now
                 }
@@ -145,6 +167,22 @@ class ConfigService:
                     id=config_key
                 )
                 logger.info(f"创建默认配置: {config_key}")
+
+    def get_config_types_metadata(self) -> Dict[str, Any]:
+        """获取配置类型元数据，用于前端渲染表单"""
+        metadata = {}
+        for config_key, config_data in DEFAULT_SYSTEM_CONFIGS.items():
+            metadata[config_key] = {
+                "label": config_data.get("label", config_key),
+                "type": config_data["config_type"],
+                "description": config_data["description"],
+                "category": config_data["category"],
+                "is_editable": config_data["is_editable"],
+                "min": config_data.get("min_value"),
+                "max": config_data.get("max_value"),
+                "validation_rules": config_data.get("validation_rules", {})
+            }
+        return metadata
 
     def get_system_config(self, config_key: str) -> Optional[SystemConfigInDB]:
         """获取系统配置"""

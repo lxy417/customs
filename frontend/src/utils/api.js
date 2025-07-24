@@ -192,28 +192,40 @@ export const groupAPI = {
 
 // 配置管理相关API
 export const configAPI = {
-  // 系统配置
-  getSystemConfigs: () => api.get('/api/v1/config/system'),
-  updateSystemConfig: (configKey, configData) => api.put(`/api/v1/config/system/${configKey}`, configData),
-  // 移除 createSystemConfig 方法，因为后端不支持创建新的系统配置
-  
-  // 角色配置覆盖
-  getRoleConfigs: (roleId = null) => {
-    const params = roleId ? { role_id: roleId } : {};
-    return api.get('/api/v1/config/role-overrides', { params });
+  // 获取系统配置
+  getSystemConfigs: (category) => {
+    const params = category ? { category } : {};
+    return api.get('api/v1/config/system', { params });
   },
-  getAllRoleConfigs: () => api.get('/api/v1/config/role-overrides/all'),
-  createRoleConfig: (configData) => api.put(`/api/v1/config/role-overrides/${configData.role_id}/${configData.config_key}`, {
-    config_value: configData.config_value
-  }),
-  deleteRoleConfig: (roleId, configKey) => api.delete(`/api/v1/config/role-overrides/${roleId}/${configKey}`),
-
-  // 获取当前用户有效配置
-  getUserEffectiveConfig: () => api.get('/api/v1/config/effective'),
   
-  // 国家映射配置
-  getCountryMappings: () => api.get('/api/v1/config/country-mapping'),
-  addCountryMapping: (mappingData) => api.post('/api/v1/config/country-mapping', mappingData)
+  // 获取配置类型元数据
+  getConfigTypes: () => api.get('api/v1/config/types'),
+  
+  // 更新系统配置
+  updateSystemConfig: (configKey, data) => api.put(`api/v1/config/system/${configKey}`, data),
+  
+  // 获取所有角色配置
+  getAllRoleConfigs: () => api.get('api/v1/config/role-overrides/all'),
+  
+  // 获取角色配置
+  getRoleConfigs: (roleId) => api.get(`api/v1/config/role-overrides/${roleId}`),
+  
+  // 创建角色配置
+  createRoleConfig: (data) => api.put(`api/v1/config/role-overrides/${data.role_id}/${data.config_key}`, {
+    config_value: data.config_value
+  }),
+  
+  // 删除角色配置
+  deleteRoleConfig: (roleId, configKey) => api.delete(`api/v1/config/role-overrides/${roleId}/${configKey}`),
+  
+  // 获取用户有效配置
+  getEffectiveConfigs: () => api.get('api/v1/config/effective'),
+  
+  // 获取国家映射
+  getCountryMapping: () => api.get('api/v1/config/country-mapping'),
+  
+  // 添加国家映射
+  addCountryMapping: (data) => api.post('api/v1/config/country-mapping', data)
 };
 
 // 数据导入相关API
