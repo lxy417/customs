@@ -289,12 +289,45 @@ const EnhancedImport = () => {
     },
     {
       title: '海关编码',
-      dataIndex: 'customs_code',
-      key: 'customs_code',
-      width: 100,
-      render: (text) => {
-        if (!text) return '-';
-        return <Tag color="blue">{text}</Tag>;
+      dataIndex: 'customs_codes',
+      key: 'customs_codes',
+      width: 120,
+      render: (customsCodes) => {
+        if (!customsCodes) return <Text type="secondary">-</Text>;
+        
+        // 如果是数组
+        if (Array.isArray(customsCodes)) {
+          if (customsCodes.length === 0) return <Text type="secondary">-</Text>;
+          
+          // 如果只有一个海关编码
+          if (customsCodes.length === 1) {
+            return <Tag color="blue">{customsCodes[0]}</Tag>;
+          }
+          
+          // 如果有多个海关编码，显示前几个并显示总数
+          const displayCodes = customsCodes.slice(0, 2);
+          const remainingCount = customsCodes.length - displayCodes.length;
+          
+          return (
+            <div>
+              {displayCodes.map((code, index) => (
+                <Tag key={index} color="blue" style={{ marginBottom: '2px' }}>
+                  {code}
+                </Tag>
+              ))}
+              {remainingCount > 0 && (
+                <Tooltip title={`还有 ${remainingCount} 个海关编码: ${customsCodes.slice(2).join(', ')}`}>
+                  <Tag color="geekblue" style={{ cursor: 'pointer' }}>
+                    +{remainingCount}
+                  </Tag>
+                </Tooltip>
+              )}
+            </div>
+          );
+        }
+        
+        // 如果是字符串
+        return <Tag color="blue">{customsCodes}</Tag>;
       }
     },
     {
@@ -382,7 +415,7 @@ const EnhancedImport = () => {
           >
             详情
           </Button>
-          {record.status === 'completed' && !record.rollback_status && (
+          {record.status === 'completed' && (record.success_count || record.successful_count || 0) > 0 && record.rollback_status !== 'completed' && (
             <Button 
               type="link" 
               size="small"
@@ -432,14 +465,14 @@ const EnhancedImport = () => {
         <Button key="cancel" onClick={() => setRollbackModalVisible(false)}>
           取消
         </Button>,
-        <Button 
-          key="preview" 
-          onClick={() => handleRollbackExecute(true)}
-          loading={rollbackLoading}
-          icon={<EyeOutlined />}
-        >
-          预演回滚
-        </Button>,
+        // <Button 
+        //   key="preview" 
+        //   onClick={() => handleRollbackExecute(true)}
+        //   loading={rollbackLoading}
+        //   icon={<EyeOutlined />}
+        // >
+        //   预演回滚
+        // </Button>,
         <Button 
           key="execute" 
           type="primary" 
@@ -580,8 +613,8 @@ const EnhancedImport = () => {
                   id: item.id,
                   customs_code: item.source.海关编码,
                   product_name: item.source.详细产品名称,
-                  country: item.source.国家,
-                  date: item.source.数据日期
+                  country: item.source.出口商所在国家,
+                  date: item.source.日期
                 }))}
                 columns={[
                   {
@@ -606,7 +639,7 @@ const EnhancedImport = () => {
                     render: (text) => <Text>{text}</Text>
                   },
                   {
-                    title: '国家',
+                    title: '出口国家',
                     dataIndex: 'country',
                     key: 'country',
                     width: 80,
@@ -632,7 +665,7 @@ const EnhancedImport = () => {
             message="操作说明"
             description={
               <div>
-                <p>• <strong>预演回滚</strong>：模拟回滚过程，不会实际删除数据</p>
+                {/* <p>• <strong>预演回滚</strong>：模拟回滚过程，不会实际删除数据</p> */}
                 <p>• <strong>确认回滚</strong>：正式执行回滚，将永久删除上述数据</p>
                 <p>• 回滚完成后，任务状态将变更为"已回滚"</p>
               </div>
@@ -677,11 +710,11 @@ const EnhancedImport = () => {
                     description={
                       <div>
                         <p>• 支持同时上传多个Excel文件(.xlsx, .xls)</p>
-                        <p>• 系统会自动处理每个文件的多个sheet</p>
+                        {/* <p>• 系统会自动处理每个文件的多个sheet</p>
                         <p>• 自动进行数据去重和格式转换</p>
                         <p>• 海关编码会自动截取前6位</p>
                         <p>• 国家名称会自动转换为中文</p>
-                        <p>• 自动检测ES数据库中的重复数据</p>
+                        <p>• 自动检测ES数据库中的重复数据</p> */}
                       </div>
                     }
                     type="info"
