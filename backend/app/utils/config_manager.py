@@ -2,7 +2,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 from threading import Lock
 
@@ -52,11 +52,46 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"检查国家映射配置文件失败: {str(e)}")
     
-    def get_country_mapping(self) -> Dict[str, str]:
-        """获取国家映射配置（支持热加载）"""
+    def get_country_mapping(self) -> Dict[str, List[str]]:
+        """获取国家映射配置（支持热加载）
+        返回格式: {"中文名": ["English (Code)", "English", "中文名"]}
+        """
         with self._lock:
             self._check_and_reload_country_mapping()
             return self._country_mapping.copy()
+    
+    def find_chinese_name(self, input_country: str) -> str:
+        """根据输入的国家名称查找对应的中文名称"""
+        if not input_country or not input_country.strip():
+            return ""
+        
+        input_country = input_country.strip()
+        
+        with self._lock:
+            self._check_and_reload_country_mapping()
+            
+            # 遍历所有映射，查找匹配的国家名称
+            for chinese_name, aliases in self._country_mapping.items():
+                # 精确匹配
+                if input_country in aliases:
+                    return chinese_name
+                
+                # 模糊匹配
+                for alias in aliases:
+                    # 检查是否包含国家代码
+                    if '(' in alias and ')' in alias:
+                        country_code = alias.split('(')[1].split(')')[0]
+                        if country_code.upper() in input_country.upper():
+                            return chinese_name
+                    
+                    # 检查名称部分匹配
+                    alias_name = alias.split('(')[0].strip()
+                    if (alias_name.lower() in input_country.lower() or 
+                        input_country.lower() in alias_name.lower()):
+                        return chinese_name
+            
+            # 如果没有找到匹配，返回原值
+            return input_country
     
     def reload_all_configs(self):
         """手动重新加载所有配置"""
@@ -64,17 +99,24 @@ class ConfigManager:
             logger.info("手动重新加载所有配置...")
             self._load_country_mapping()
     
-    def add_country_mapping(self, english_name: str, chinese_name: str):
+    def add_country_mapping(self, chinese_name: str, aliases: List[str]):
         """动态添加国家映射"""
         with self._lock:
-            self._country_mapping[english_name] = chinese_name
+            if chinese_name not in self._country_mapping:
+                self._country_mapping[chinese_name] = []
+            
+            # 添加新的别名，避免重复
+            for alias in aliases:
+                if alias not in self._country_mapping[chinese_name]:
+                    self._country_mapping[chinese_name].append(alias)
+            
             self._save_country_mapping()
     
-    def remove_country_mapping(self, english_name: str):
+    def remove_country_mapping(self, chinese_name: str):
         """动态删除国家映射"""
         with self._lock:
-            if english_name in self._country_mapping:
-                del self._country_mapping[english_name]
+            if chinese_name in self._country_mapping:
+                del self._country_mapping[chinese_name]
                 self._save_country_mapping()
     
     def _save_country_mapping(self):

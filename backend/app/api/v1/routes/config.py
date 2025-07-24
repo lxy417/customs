@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class CountryMappingRequest(BaseModel):
-    english_name: str
     chinese_name: str
+    aliases: List[str]
 
 class ConfigUpdateRequest(BaseModel):
     config_value: str
@@ -21,7 +21,7 @@ class ConfigUpdateRequest(BaseModel):
 class RoleConfigRequest(BaseModel):
     config_value: str
 
-@router.get("/country-mapping", response_model=Dict[str, str], tags=["配置管理"])
+@router.get("/country-mapping", response_model=Dict[str, List[str]], tags=["配置管理"])
 async def get_country_mapping(current_user: UserInDB = Depends(get_current_user)):
     """获取国家映射配置"""
     try:
@@ -40,11 +40,26 @@ async def add_country_mapping(
     """添加国家映射配置"""
     try:
         from app.utils.config_manager import config_manager
-        config_manager.add_country_mapping(request.english_name, request.chinese_name)
+        config_manager.add_country_mapping(request.chinese_name, request.aliases)
         return {"message": "国家映射添加成功"}
     except Exception as e:
         logger.error(f"添加国家映射配置失败: {str(e)}")
         raise HTTPException(status_code=500, detail="添加配置失败")
+
+@router.delete("/country-mapping/{chinese_name}", tags=["配置管理"])
+@require_permissions([Permissions.CONFIG_MANAGE])
+async def delete_country_mapping(
+    chinese_name: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """删除国家映射配置"""
+    try:
+        from app.utils.config_manager import config_manager
+        config_manager.remove_country_mapping(chinese_name)
+        return {"message": "国家映射删除成功"}
+    except Exception as e:
+        logger.error(f"删除国家映射配置失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="删除配置失败")
 
 # 系统配置管理
 @router.get("/system", response_model=List[Dict[str, Any]], tags=["系统配置"])

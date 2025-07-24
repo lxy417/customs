@@ -421,7 +421,7 @@ const DataQuery = () => {
       width: 120
     },
     {
-      title: '进口公司',
+      title: '进口商',
       dataIndex: '进口商',
       key: '进口商',
       sorter: true,
@@ -435,7 +435,7 @@ const DataQuery = () => {
       width: 120
     },
     {
-      title: '出口公司',
+      title: '出口商',
       dataIndex: '出口商',
       key: '出口商',
       sorter: true,
@@ -477,7 +477,7 @@ const DataQuery = () => {
       key: '金额美元',
       sorter: true,
       width: 120,
-      render: (text) => `$${text?.toFixed(2)}`
+      render: (text) => text?.toFixed(2)
     },
     {
       title: '详细产品名称',

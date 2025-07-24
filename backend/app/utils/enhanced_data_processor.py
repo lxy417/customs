@@ -27,6 +27,26 @@ class EnhancedDataProcessor:
         # 使用DataService来处理数据操作
         self.data_service = DataService()
 
+    def _map_country_name(self, country_value: Any) -> str:
+        """将英文国家名映射为中文国家名"""
+        if not country_value or pd.isna(country_value):
+            return ""
+        
+        country_str = str(country_value).strip()
+        if not country_str:
+            return ""
+        
+        # 使用config_manager的新方法查找中文名称
+        try:
+            chinese_name = config_manager.find_chinese_name(country_str)
+            if chinese_name != country_str:
+                logger.debug(f"国家映射: {country_str} -> {chinese_name}")
+            else:
+                logger.warning(f"未找到国家映射: {country_str}")
+            return chinese_name
+        except Exception as e:
+            logger.error(f"国家映射处理失败: {str(e)}")
+            return country_str
 
     def truncate_customs_code(self, code: str) -> str:
         """截断海关编码到前6位"""
@@ -155,6 +175,12 @@ class EnhancedDataProcessor:
                                 record[col] = date_obj.strftime('%Y-%m-%d')
                             except:
                                 record[col] = str(value)
+                    elif col in ['进口商所在国家', '出口商所在国家']:
+                        # 处理国家字段，进行英文到中文的映射
+                        mapped_country = self._map_country_name(value)
+                        record[col] = mapped_country
+                        if str(value).strip() != mapped_country:
+                            logger.debug(f"国家字段映射 {col}: {value} -> {mapped_country}")
                     else:
                         # 处理其他字段
                         record[col] = value

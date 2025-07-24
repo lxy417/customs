@@ -1,53 +1,343 @@
 {
   "country_mapping": {
-    "India (IN)": "印度",
-    "China (CN)": "中国",
-    "United States (US)": "美国",
-    "Thailand (TH)": "泰国",
-    "Belgium (BE)": "比利时",
-    "Vietnam (VN)": "越南",
-    "Germany (DE)": "德国",
-    "Japan (JP)": "日本",
-    "South Korea (KR)": "韩国",
-    "Singapore (SG)": "新加坡",
-    "Malaysia (MY)": "马来西亚",
-    "Indonesia (ID)": "印度尼西亚",
-    "Philippines (PH)": "菲律宾",
-    "Australia (AU)": "澳大利亚",
-    "United Kingdom (GB)": "英国",
-    "France (FR)": "法国",
-    "Italy (IT)": "意大利",
-    "Spain (ES)": "西班牙",
-    "Netherlands (NL)": "荷兰",
-    "Brazil (BR)": "巴西",
-    "Mexico (MX)": "墨西哥",
-    "Canada (CA)": "加拿大",
-    "Russia (RU)": "俄罗斯",
-    "Turkey (TR)": "土耳其",
-    "Saudi Arabia (SA)": "沙特阿拉伯",
-    "United Arab Emirates (AE)": "阿联酋",
-    "Egypt (EG)": "埃及",
-    "South Africa (ZA)": "南非",
-    "Nigeria (NG)": "尼日利亚",
-    "Kenya (KE)": "肯尼亚",
-    "Argentina (AR)": "阿根廷",
-    "Chile (CL)": "智利",
-    "Peru (PE)": "秘鲁",
-    "Colombia (CO)": "哥伦比亚",
-    "Venezuela (VE)": "委内瑞拉",
-    "Ecuador (EC)": "厄瓜多尔",
-    "Uruguay (UY)": "乌拉圭",
-    "Paraguay (PY)": "巴拉圭",
-    "Bolivia (BO)": "玻利维亚",
-    "New Zealand (NZ)": "新西兰",
-    "Pakistan (PK)": "巴基斯坦",
-    "Bangladesh (BD)": "孟加拉国",
-    "Sri Lanka (LK)": "斯里兰卡",
-    "Myanmar (MM)": "缅甸",
-    "Cambodia (KH)": "柬埔寨",
-    "Laos (LA)": "老挝",
-    "Taiwan (TW)": "台湾",
-    "Hong Kong (HK)": "香港",
-    "Macau (MO)": "澳门"
+    "印度": [
+      "India (IN)",
+      "India",
+      "印度"
+    ],
+    "中国": [
+      "China (CN)",
+      "China",
+      "中国",
+      "Taiwan,China (TW)"
+    ],
+    "美国": [
+      "United States (US)",
+      "United States",
+      "美国"
+    ],
+    "泰国": [
+      "Thailand (TH)",
+      "Thailand",
+      "泰国"
+    ],
+    "比利时": [
+      "Belgium (BE)",
+      "Belgium",
+      "比利时"
+    ],
+    "越南": [
+      "Vietnam (VN)",
+      "Vietnam",
+      "越南"
+    ],
+    "德国": [
+      "Germany (DE)",
+      "Germany",
+      "德国"
+    ],
+    "日本": [
+      "Japan (JP)",
+      "Japan",
+      "日本"
+    ],
+    "新加坡": [
+      "Singapore (SG)",
+      "Singapore",
+      "新加坡"
+    ],
+    "马来西亚": [
+      "Malaysia (MY)",
+      "Malaysia",
+      "马来西亚"
+    ],
+    "印度尼西亚": [
+      "Indonesia (ID)",
+      "Indonesia",
+      "印度尼西亚"
+    ],
+    "菲律宾": [
+      "Philippines (PH)",
+      "Philippines",
+      "菲律宾"
+    ],
+    "澳大利亚": [
+      "Australia (AU)",
+      "Australia",
+      "澳大利亚"
+    ],
+    "英国": [
+      "United Kingdom (GB)",
+      "United Kingdom",
+      "英国"
+    ],
+    "法国": [
+      "France (FR)",
+      "France",
+      "法国"
+    ],
+    "意大利": [
+      "Italy (IT)",
+      "Italy",
+      "意大利"
+    ],
+    "西班牙": [
+      "Spain (ES)",
+      "Spain",
+      "西班牙"
+    ],
+    "荷兰": [
+      "Netherlands (NL)",
+      "Netherlands",
+      "荷兰"
+    ],
+    "巴西": [
+      "Brazil (BR)",
+      "Brazil",
+      "巴西"
+    ],
+    "墨西哥": [
+      "Mexico (MX)",
+      "Mexico",
+      "墨西哥"
+    ],
+    "加拿大": [
+      "Canada (CA)",
+      "Canada",
+      "加拿大"
+    ],
+    "俄罗斯": [
+      "Russia (RU)",
+      "Russia",
+      "俄罗斯"
+    ],
+    "土耳其": [
+      "Turkey (TR)",
+      "Turkey",
+      "土耳其"
+    ],
+    "沙特阿拉伯": [
+      "Saudi Arabia (SA)",
+      "Saudi Arabia",
+      "沙特阿拉伯"
+    ],
+    "阿联酋": [
+      "United Arab Emirates (AE)",
+      "United Arab Emirates",
+      "阿联酋"
+    ],
+    "埃及": [
+      "Egypt (EG)",
+      "Egypt",
+      "埃及"
+    ],
+    "南非": [
+      "South Africa (ZA)",
+      "South Africa",
+      "南非"
+    ],
+    "尼日利亚": [
+      "Nigeria (NG)",
+      "Nigeria",
+      "尼日利亚"
+    ],
+    "肯尼亚": [
+      "Kenya (KE)",
+      "Kenya",
+      "肯尼亚"
+    ],
+    "阿根廷": [
+      "Argentina (AR)",
+      "Argentina",
+      "阿根廷"
+    ],
+    "智利": [
+      "Chile (CL)",
+      "Chile",
+      "智利"
+    ],
+    "秘鲁": [
+      "Peru (PE)",
+      "Peru",
+      "秘鲁"
+    ],
+    "哥伦比亚": [
+      "Colombia (CO)",
+      "Colombia",
+      "哥伦比亚"
+    ],
+    "委内瑞拉": [
+      "Venezuela (VE)",
+      "Venezuela",
+      "委内瑞拉"
+    ],
+    "厄瓜多尔": [
+      "Ecuador (EC)",
+      "Ecuador",
+      "厄瓜多尔"
+    ],
+    "乌拉圭": [
+      "Uruguay (UY)",
+      "Uruguay",
+      "乌拉圭"
+    ],
+    "巴拉圭": [
+      "Paraguay (PY)",
+      "Paraguay",
+      "巴拉圭"
+    ],
+    "玻利维亚": [
+      "Bolivia (BO)",
+      "Bolivia",
+      "玻利维亚"
+    ],
+    "新西兰": [
+      "New Zealand (NZ)",
+      "New Zealand",
+      "新西兰"
+    ],
+    "巴基斯坦": [
+      "Pakistan (PK)",
+      "Pakistan",
+      "巴基斯坦"
+    ],
+    "孟加拉国": [
+      "Bangladesh (BD)",
+      "Bangladesh",
+      "孟加拉国"
+    ],
+    "斯里兰卡": [
+      "Sri Lanka (LK)",
+      "Sri Lanka",
+      "斯里兰卡"
+    ],
+    "缅甸": [
+      "Myanmar (MM)",
+      "Myanmar",
+      "缅甸"
+    ],
+    "柬埔寨": [
+      "Cambodia (KH)",
+      "Cambodia",
+      "柬埔寨"
+    ],
+    "老挝": [
+      "Laos (LA)",
+      "Laos",
+      "老挝"
+    ],
+    "中国台湾": [
+      "Taiwan (TW)",
+      "Taiwan",
+      "台湾",
+      "中国台湾"
+    ],
+    "中国香港": [
+      "Hong Kong (HK)",
+      "Hong Kong",
+      "香港",
+      "中国香港"
+    ],
+    "中国澳门": [
+      "Macau (MO)",
+      "Macau",
+      "澳门",
+      "中国澳门"
+    ],
+    "阿富汗": [
+    "Afghanistan (AF)",
+    "Afghanistan",
+    "阿富汗"
+    ],
+    "奥地利": [
+      "Austria (AT)",
+      "Austria",
+      "奥地利"
+    ],
+    "巴哈马": [
+      "Bahamas (BS)",
+      "Bahamas",
+      "巴哈马"
+    ],
+    "哥斯达黎加": [
+      "Costa Rica (CR)",
+      "Costa Rica",
+      "哥斯达黎加"
+    ],
+    "丹麦": [
+      "Denmark (DK)",
+      "Denmark",
+      "丹麦"
+    ],
+    "萨尔瓦多": [
+      "El Salvador (SV)",
+      "El Salvador",
+      "萨尔瓦多"
+    ],
+    "加纳": [
+      "Ghana (GH)",
+      "Ghana",
+      "加纳"
+    ],
+    "哈萨克斯坦": [
+      "Kazakhstan (KZ)",
+      "Kazakhstan",
+      "哈萨克斯坦"
+    ],
+    "韩国": [
+      "Korea Rep (KR)",
+      "South Korea",
+      "韩国"
+    ],
+    "摩洛哥": [
+      "Morocco (MA)",
+      "Morocco",
+      "摩洛哥"
+    ],
+    "尼泊尔": [
+      "Nepal (NP)",
+      "Nepal",
+      "尼泊尔"
+    ],
+    "阿曼": [
+      "Oman (OM)",
+      "Oman",
+      "阿曼"
+    ],
+    "巴拿马": [
+      "Panama (PA)",
+      "Panama",
+      "巴拿马"
+    ],
+    "波兰": [
+      "Poland (PL)",
+      "Poland",
+      "波兰"
+    ],
+    "葡萄牙": [
+      "Portugal (PT)",
+      "Portugal",
+      "葡萄牙"
+    ],
+    "瑞典": [
+      "Sweden (SE)",
+      "Sweden",
+      "瑞典"
+    ],
+    "突尼斯": [
+      "Tunisia (TN)",
+      "Tunisia",
+      "突尼斯"
+    ],
+    "乌干达": [
+      "Uganda (UG)",
+      "Uganda",
+      "乌干达"
+    ],
+    "乌兹别克斯坦": [
+      "Uzbekistan (UZ)",
+      "Uzbekistan",
+      "乌兹别克斯坦"
+    ]
   }
 }

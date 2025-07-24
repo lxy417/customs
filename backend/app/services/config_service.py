@@ -320,7 +320,10 @@ class ConfigService:
             "updated_at": now
         }
         
-        if not existing_override:
+        # 如果是新建配置，设置created_at；如果是更新，保留原有的created_at
+        if existing_override:
+            override_data["created_at"] = existing_override.created_at
+        else:
             override_data["created_at"] = now
 
         self.es_client.index(

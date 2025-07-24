@@ -38,23 +38,29 @@ const RoleManagement = () => {
   const [editingRole, setEditingRole] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
   const [roleConfigs, setRoleConfigs] = useState([]);
+  const [configTypes, setConfigTypes] = useState({}); // 新增：配置类型元数据
   const [form] = Form.useForm();
   const [configForm] = Form.useForm();
 
-  // 配置类型定义
-  const CONFIG_TYPES = {
-    'export_limit': { label: '默认导出条数限制', type: 'number', min: -1, description: '用户默认可导出的数据条数，-1表示不限制' },
-    'export_max_limit': { label: '最大导出条数限制', type: 'number', min: -1, description: '用户最多可导出的数据条数，-1表示不限制' },
-    'import_batch_size': { label: '导入批次大小', type: 'number', min: 1, description: '数据导入时每批次处理的记录数' },
-    'session_timeout': { label: '会话超时时间(分钟)', type: 'number', min: 1, description: '用户会话的超时时间' },
-    'max_search_results': { label: '最大搜索结果数', type: 'number', min: 1, description: '搜索时返回的最大结果数量' }
-  };
+  // 移除硬编码的CONFIG_TYPES
 
   // 组件挂载时加载数据
   useEffect(() => {
     fetchRoles();
     fetchAvailablePermissions();
+    fetchConfigTypes(); // 新增：获取配置类型
   }, []);
+
+  // 新增：获取配置类型元数据
+  const fetchConfigTypes = async () => {
+    try {
+      const response = await configAPI.getConfigTypes();
+      setConfigTypes(response);
+    } catch (error) {
+      console.error('获取配置类型失败:', error);
+      message.error('获取配置类型失败');
+    }
+  };
 
   const fetchRoles = async () => {
     try {
@@ -421,7 +427,7 @@ const RoleManagement = () => {
                     rules={[{ required: true, message: '请选择配置项' }]}
                   >
                     <Select placeholder="选择配置项" style={{ width: 200 }}>
-                      {Object.entries(CONFIG_TYPES).map(([key, config]) => (
+                      {Object.entries(configTypes).map(([key, config]) => (
                         <Option key={key} value={key}>
                           {config.label}
                           <Tooltip title={config.description}>
@@ -438,7 +444,14 @@ const RoleManagement = () => {
                   >
                     <InputNumber
                       placeholder="配置值"
-                      min={-1}
+                      min={(() => {
+                        const configKey = configForm.getFieldValue('config_key');
+                        return configKey && configTypes[configKey] ? configTypes[configKey].min : -1;
+                      })()}
+                      max={(() => {
+                        const configKey = configForm.getFieldValue('config_key');
+                        return configKey && configTypes[configKey] ? configTypes[configKey].max : undefined;
+                      })()}
                       style={{ width: 120 }}
                     />
                   </Form.Item>
@@ -466,15 +479,15 @@ const RoleManagement = () => {
                       title: '配置项',
                       dataIndex: 'config_key',
                       key: 'config_key',
-                      render: (key) => CONFIG_TYPES[key]?.label || key
+                      render: (key) => configTypes[key]?.label || key
                     },
                     {
                       title: '配置值',
                       dataIndex: 'config_value',
                       key: 'config_value',
                       render: (value, record) => {
-                        const configType = CONFIG_TYPES[record.config_key];
-                        if (configType?.type === 'number' && value === -1) {
+                        const configType = configTypes[record.config_key];
+                        if (configType?.type === 'number' && value === '-1') {
                           return <span style={{ color: '#52c41a' }}>不限制</span>;
                         }
                         return value;
@@ -484,7 +497,7 @@ const RoleManagement = () => {
                       title: '描述',
                       dataIndex: 'config_key',
                       key: 'description',
-                      render: (key) => CONFIG_TYPES[key]?.description || '-'
+                      render: (key) => configTypes[key]?.description || '-'
                     },
                     {
                       title: '更新时间',
