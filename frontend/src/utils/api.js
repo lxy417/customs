@@ -190,6 +190,32 @@ export const groupAPI = {
   removeUserFromGroup: (groupId, username) => api.delete(`/api/v1/group/${groupId}/users/${username}`)
 };
 
+// 配置管理相关API
+export const configAPI = {
+  // 系统配置
+  getSystemConfigs: () => api.get('/api/v1/config/system'),
+  updateSystemConfig: (configKey, configData) => api.put(`/api/v1/config/system/${configKey}`, configData),
+  createSystemConfig: (configData) => api.post('/api/v1/config/system', configData),
+  
+  // 角色配置覆盖
+  getRoleConfigs: (roleId = null) => {
+    const params = roleId ? { role_id: roleId } : {};
+    return api.get('/api/v1/config/role-overrides', { params });
+  },
+  getAllRoleConfigs: () => api.get('/api/v1/config/role-overrides/all'),
+  createRoleConfig: (configData) => api.put(`/api/v1/config/role-overrides/${configData.role_id}/${configData.config_key}`, {
+    config_value: configData.config_value
+  }),
+  deleteRoleConfig: (roleId, configKey) => api.delete(`/api/v1/config/role-overrides/${roleId}/${configKey}`),
+
+  // 获取当前用户有效配置
+  getUserEffectiveConfig: () => api.get('/api/v1/config/effective'),
+  
+  // 国家映射配置
+  getCountryMappings: () => api.get('/api/v1/config/country-mapping'),
+  addCountryMapping: (mappingData) => api.post('/api/v1/config/country-mapping', mappingData)
+};
+
 // 数据导入相关API
 export const importAPI = {
   importExcel: (file) => {

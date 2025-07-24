@@ -144,7 +144,7 @@ const GroupManagement = () => {
     ...(hasPermission(PERMISSIONS.GROUP_MANAGE) ? [{
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 260,
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -329,7 +329,7 @@ const GroupManagement = () => {
           showQuickJumper: true,
           showTotal: (total) => `共 ${total} 个用户组`
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1200 }}
       />
 
       {/* 创建/编辑用户组模态框 - 只有拥有用户组管理权限的用户才能看到 */}
@@ -381,7 +381,7 @@ const GroupManagement = () => {
             <Form.Item
               label="允许访问的海关编码"
               name="allowed_customs_codes"
-              extra="不选择表示可以访问所有海关编码，此权限与用户直接权限叠加"
+              // extra="不选择表示可以访问所有海关编码，此权限与用户直接权限叠加"
             >
               <Select
                 mode="multiple"

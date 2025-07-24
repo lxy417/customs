@@ -7,6 +7,7 @@ import { PERMISSIONS } from './utils/permissions';
 import Login from './pages/Login';
 import DataQuery from './pages/DataQuery';
 import UserManagement from './pages/UserManagement';
+import ConfigManagement from './pages/ConfigManagement';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Header from './components/Header';
@@ -74,6 +75,18 @@ function App() {
                 element={<UserManagement />} 
                 path="/user-management"
                 requiredPermissions={[PERMISSIONS.USER_MANAGE, PERMISSIONS.ROLE_MANAGE, PERMISSIONS.GROUP_MANAGE]}
+              />
+            } 
+          />
+          
+          {/* 配置管理 - 需要 config_view 权限 */}
+          <Route 
+            path="/config-management" 
+            element={
+              <PrivateRoute 
+                element={<ConfigManagement />} 
+                path="/config-management"
+                requiredPermissions={[PERMISSIONS.CONFIG_VIEW]}
               />
             } 
           />

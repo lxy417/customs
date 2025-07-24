@@ -18,6 +18,8 @@ PERMISSIONS = {
     "user_manage": "用户管理",
     "group_manage": "用户组管理",
     "role_manage": "角色管理",
+    "config_manage": "配置管理",
+    "config_view": "配置查看",
     "ai_search": "AI搜索",
 }
 
@@ -26,7 +28,7 @@ DEFAULT_ROLES = {
     "admin": {
         "name": "管理员",
         "description": "系统管理员，拥有所有权限",
-        "permissions": list(PERMISSIONS.keys()),
+        "permissions": list(PERMISSIONS.keys()),  # 管理员拥有所有权限，包括新的配置管理权限
         "is_system": True
     },
     "user": {

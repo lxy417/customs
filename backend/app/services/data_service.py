@@ -529,37 +529,139 @@ class DataService:
             logger.error(f"批量删除海关数据失败: {str(e)}", exc_info=True)
             raise
 
-    def export_customs_data(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
-        """根据条件导出海关数据，最多2000条"""
+    def export_customs_data(self, query_params: Dict[str, Any], user_role_id: Optional[str] = None) -> Dict[str, Any]:
+        """根据条件导出海关数据，支持配置化的条数限制"""
         try:
+            # 获取导出限制配置
+            from app.services.config_service import ConfigService
+            config_service = ConfigService()
+            
+            # 获取用户有效的导出限制配置
+            export_limit = config_service.get_effective_config(
+                user_role_id or "user", 
+                "export_limit", 
+                default_value=2000
+            )
+            
+            # 获取系统最大导出限制（安全上限）
+            max_export_limit = config_service.get_effective_config(
+                user_role_id or "user",
+                "export_max_limit",
+                default_value=50000
+            )
+            
             # 构建查询条件（不启用模糊查询，导出需要精确数据）
             query_body = self._build_query_conditions(query_params, enable_fuzzy=False)
             
             # 构建排序条件
             sort = self._build_sort_conditions(query_params)
 
-            # 执行查询，限制最多2000条
+            # 确定实际的导出条数限制
+            actual_limit = self._determine_export_limit(export_limit, max_export_limit)
+            
+            logger.info(f"导出配置 - 用户限制: {export_limit}, 系统最大限制: {max_export_limit}, 实际限制: {actual_limit}")
+
+            # 执行查询
+            if actual_limit == -1:
+                # 不限制条数，使用scroll API进行大量数据导出
+                return self._export_with_scroll(query_body, sort)
+            else:
+                # 限制条数的常规导出
+                response = self.es_client.search(
+                    index=self.index_name,
+                    query=query_body,
+                    sort=sort,
+                    size=actual_limit,
+                    _source=self._get_default_source_fields()
+                )
+
+                total = response["hits"]["total"]["value"]
+                hits = response["hits"]["hits"]
+                
+                # 格式化结果
+                data = self._format_search_results(hits)
+                
+                return {
+                    "total": total,
+                    "exported": len(data),
+                    "data": data,
+                    "export_limit": export_limit,
+                    "actual_limit": actual_limit,
+                    "is_limited": total > actual_limit
+                }
+        except Exception as e:
+            logger.error(f"数据导出失败: {str(e)}", exc_info=True)
+            raise
+
+    def _determine_export_limit(self, export_limit: int, max_export_limit: int) -> int:
+        """确定实际的导出限制"""
+        if export_limit == -1:
+            # 用户配置为不限制，但仍需检查系统最大限制
+            return max_export_limit if max_export_limit > 0 else -1
+        elif export_limit <= 0:
+            # 无效配置，使用默认值
+            return 2000
+        else:
+            # 用户有限制，取用户限制和系统最大限制的较小值
+            if max_export_limit > 0:
+                return min(export_limit, max_export_limit)
+            else:
+                return export_limit
+
+    def _export_with_scroll(self, query_body: Dict[str, Any], sort: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """使用scroll API导出大量数据（不限制条数时使用）"""
+        try:
+            # 初始化scroll搜索
             response = self.es_client.search(
                 index=self.index_name,
                 query=query_body,
                 sort=sort,
-                size=2000,  # 限制最多2000条
+                size=1000,  # 每批次1000条
+                scroll='5m',
                 _source=self._get_default_source_fields()
             )
-
-            total = response["hits"]["total"]["value"]
-            hits = response["hits"]["hits"]
             
-            # 格式化结果
-            data = self._format_search_results(hits)
+            scroll_id = response['_scroll_id']
+            total = response["hits"]["total"]["value"]
+            all_data = []
+            
+            # 处理第一批数据
+            hits = response["hits"]["hits"]
+            all_data.extend(self._format_search_results(hits))
+            
+            # 继续scroll获取剩余数据
+            while len(hits) > 0:
+                response = self.es_client.scroll(
+                    scroll_id=scroll_id,
+                    scroll='5m'
+                )
+                hits = response["hits"]["hits"]
+                if hits:
+                    all_data.extend(self._format_search_results(hits))
+                
+                # 安全检查：如果数据量过大，停止导出
+                if len(all_data) > 100000:  # 硬编码的安全上限
+                    logger.warning(f"导出数据量过大，已达到安全上限: {len(all_data)}")
+                    break
+            
+            # 清理scroll
+            try:
+                self.es_client.clear_scroll(scroll_id=scroll_id)
+            except Exception as e:
+                logger.warning(f"清理scroll失败: {str(e)}")
             
             return {
                 "total": total,
-                "exported": len(data),
-                "data": data
+                "exported": len(all_data),
+                "data": all_data,
+                "export_limit": -1,
+                "actual_limit": -1,
+                "is_limited": False,
+                "is_scroll_export": True
             }
+            
         except Exception as e:
-            logger.error(f"数据导出失败: {str(e)}", exc_info=True)
+            logger.error(f"Scroll导出失败: {str(e)}", exc_info=True)
             raise
 
     def search_customs_data_with_fuzzy(self, query_params: Dict[str, Any]) -> Dict[str, Any]:

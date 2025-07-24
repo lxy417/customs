@@ -9,7 +9,31 @@ export const PERMISSIONS = {
   USER_MANAGE: 'user_manage',
   GROUP_MANAGE: 'group_manage',
   ROLE_MANAGE: 'role_manage',
+  CONFIG_MANAGE: 'config_manage',
+  CONFIG_VIEW: 'config_view',
   AI_SEARCH: 'ai_search',
+};
+
+// 路由权限配置
+export const ROUTE_PERMISSIONS = {
+  '/home': [], // 所有登录用户都可以访问
+  '/data-query': [PERMISSIONS.DATA_VIEW],
+  '/import': [PERMISSIONS.DATA_IMPORT],
+  '/user-management': [PERMISSIONS.USER_MANAGE],
+  '/role-management': [PERMISSIONS.ROLE_MANAGE],
+  '/group-management': [PERMISSIONS.GROUP_MANAGE],
+  '/config-management': [PERMISSIONS.CONFIG_VIEW, PERMISSIONS.CONFIG_MANAGE],
+};
+
+// 菜单项权限配置
+export const MENU_PERMISSIONS = {
+  home: [],
+  'data-query': [PERMISSIONS.DATA_VIEW],
+  import: [PERMISSIONS.DATA_IMPORT],
+  'user-management': [PERMISSIONS.USER_MANAGE],
+  'role-management': [PERMISSIONS.ROLE_MANAGE],
+  'group-management': [PERMISSIONS.GROUP_MANAGE],
+  'config-management': [PERMISSIONS.CONFIG_VIEW, PERMISSIONS.CONFIG_MANAGE],
 };
 
 // 权限检查工具类
@@ -49,26 +73,6 @@ export class PermissionChecker {
     return this.hasAnyPermission(routePermissions);
   }
 }
-
-// 路由权限配置
-export const ROUTE_PERMISSIONS = {
-  '/home': [], // 所有登录用户都可以访问
-  '/data-query': [PERMISSIONS.DATA_VIEW],
-  '/import': [PERMISSIONS.DATA_IMPORT],
-  '/user-management': [PERMISSIONS.USER_MANAGE],
-  '/role-management': [PERMISSIONS.ROLE_MANAGE],
-  '/group-management': [PERMISSIONS.GROUP_MANAGE],
-};
-
-// 菜单项权限配置
-export const MENU_PERMISSIONS = {
-  home: [],
-  'data-query': [PERMISSIONS.DATA_VIEW],
-  import: [PERMISSIONS.DATA_IMPORT],
-  'user-management': [PERMISSIONS.USER_MANAGE],
-  'role-management': [PERMISSIONS.ROLE_MANAGE],
-  'group-management': [PERMISSIONS.GROUP_MANAGE],
-};
 
 // 创建权限检查器实例的工具函数
 export const createPermissionChecker = (user) => {

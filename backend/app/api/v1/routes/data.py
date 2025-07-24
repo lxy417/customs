@@ -101,22 +101,34 @@ async def export_customs_data(
     current_user: UserInDB = Depends(get_current_user),
     allowed_customs_codes: Optional[List[str]] = None
 ):
-    """导出海关数据，最多2000条（需要数据导出权限，自动过滤海关编码）"""
-    logger.info(f"用户 {current_user.username} 请求导出海关数据")
-    logger.info(f"导出条件: {query_params}")
-    
+    """导出海关数据"""
     try:
-        # 如果用户不是管理员，添加海关编码过滤
-        if allowed_customs_codes is not None:
-            query_params['allowed_customs_codes'] = allowed_customs_codes
-            logger.info(f"用户 {current_user.username} 的海关编码权限: {allowed_customs_codes}")
+        logger.info(f"用户 {current_user.username} 请求导出海关数据")
+        logger.info(f"导出条件: {query_params}")
         
-        result = data_service.export_customs_data(query_params)
-        logger.info(f"导出完成: 总计 {result.get('total', 0)} 条，实际导出 {result.get('exported', 0)} 条")
+        # 获取用户权限信息
+        from app.services.user_service import UserService
+        user_service = UserService()
+        user_permissions = user_service.get_user_permissions(current_user.username)
+        logger.info(f"用户权限: {user_permissions}")
+        
+        # 添加用户权限过滤
+        if not current_user.is_admin:
+            # 非管理员用户只能导出授权的海关编码数据
+            allowed_codes = current_user.allowed_customs_codes or []
+            if allowed_codes:
+                query_params['allowed_customs_codes'] = allowed_codes
+        
+        # 传递用户角色ID到导出服务
+        result = data_service.export_customs_data(query_params, user_role_id=current_user.role_id)
+        
+        logger.info(f"导出完成: 总计 {result['total']} 条，实际导出 {result['exported']} 条")
+        logger.info(f"导出限制信息: 配置限制={result.get('export_limit')}, 实际限制={result.get('actual_limit')}, 是否受限={result.get('is_limited')}")
+        
         return result
     except Exception as e:
-        logger.error(f"数据导出失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"数据导出失败: {str(e)}")
+        logger.error(f"导出海关数据失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"导出失败: {str(e)}")
 
 @router.get("/search", response_model=Dict[str, Any], tags=["数据查询"])
 @require_permissions([Permissions.DATA_VIEW])

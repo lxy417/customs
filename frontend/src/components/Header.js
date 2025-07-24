@@ -1,5 +1,5 @@
 import { Layout, Dropdown, Menu, Avatar, Typography, Space } from 'antd';
-import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined } from '@ant-design/icons';
+import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined, ControlOutlined } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions, PERMISSIONS } from '../utils/permissions';
@@ -45,6 +45,7 @@ const AppHeader = () => {
     const path = location.pathname;
     if (path.includes('/data-query')) return ['data-query'];
     if (path.includes('/user-management')) return ['user-management'];
+    if (path.includes('/config-management')) return ['config-management'];
     if (path.includes('/import')) return ['enhanced-import'];
     if (path.includes('/home')) return ['home'];
     return ['home'];
@@ -87,6 +88,15 @@ const AppHeader = () => {
         key: 'user-management',
         icon: <UserOutlined />,
         label: <Link to="/user-management">用户管理</Link>,
+      });
+    }
+
+    // 配置管理 - 需要 config_view 权限
+    if (hasPermission(PERMISSIONS.CONFIG_VIEW)) {
+      menuItems.push({
+        key: 'config-management',
+        icon: <ControlOutlined />,
+        label: <Link to="/config-management">配置管理</Link>,
       });
     }
 

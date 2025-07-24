@@ -12,10 +12,13 @@ import {
   Space,
   Card,
   Descriptions,
-  Typography
+  Typography,
+  InputNumber,
+  Divider,
+  Tooltip
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
-import { roleAPI } from '../utils/api';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { roleAPI, configAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions, PERMISSIONS } from '../utils/permissions';
 
@@ -31,9 +34,21 @@ const RoleManagement = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [configModalVisible, setConfigModalVisible] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
+  const [roleConfigs, setRoleConfigs] = useState([]);
   const [form] = Form.useForm();
+  const [configForm] = Form.useForm();
+
+  // 配置类型定义
+  const CONFIG_TYPES = {
+    'export_limit': { label: '默认导出条数限制', type: 'number', min: -1, description: '用户默认可导出的数据条数，-1表示不限制' },
+    'export_max_limit': { label: '最大导出条数限制', type: 'number', min: -1, description: '用户最多可导出的数据条数，-1表示不限制' },
+    'import_batch_size': { label: '导入批次大小', type: 'number', min: 1, description: '数据导入时每批次处理的记录数' },
+    'session_timeout': { label: '会话超时时间(分钟)', type: 'number', min: 1, description: '用户会话的超时时间' },
+    'max_search_results': { label: '最大搜索结果数', type: 'number', min: 1, description: '搜索时返回的最大结果数量' }
+  };
 
   // 组件挂载时加载数据
   useEffect(() => {
@@ -62,6 +77,45 @@ const RoleManagement = () => {
     }
   };
 
+  // 获取角色配置
+  const fetchRoleConfigs = async (roleId) => {
+    try {
+      const response = await configAPI.getRoleConfigs(roleId);
+      // 修复：直接使用返回的数组，而不是 response.configs
+      setRoleConfigs(Array.isArray(response) ? response : []);
+    } catch (error) {
+      message.error('获取角色配置失败');
+    }
+  };
+
+  // 保存角色配置
+  const handleSaveRoleConfig = async (values) => {
+    try {
+      await configAPI.createRoleConfig({
+        ...values,
+        // 修复：确保 config_value 是字符串类型
+        config_value: String(values.config_value),
+        role_id: selectedRole.id
+      });
+      message.success('角色配置保存成功');
+      fetchRoleConfigs(selectedRole.id);
+      configForm.resetFields();
+    } catch (error) {
+      message.error(error.response?.data?.detail || '操作失败');
+    }
+  };
+
+  // 删除角色配置
+  const handleDeleteRoleConfig = async (configKey) => {
+    try {
+      await configAPI.deleteRoleConfig(selectedRole.id, configKey);
+      message.success('角色配置删除成功');
+      fetchRoleConfigs(selectedRole.id);
+    } catch (error) {
+      message.error('删除失败');
+    }
+  };
+
   const handleCreate = () => {
     setEditingRole(null);
     setModalVisible(true);
@@ -81,6 +135,12 @@ const RoleManagement = () => {
   const handleView = (role) => {
     setSelectedRole(role);
     setDetailModalVisible(true);
+  };
+
+  const handleConfig = (role) => {
+    setSelectedRole(role);
+    setConfigModalVisible(true);
+    fetchRoleConfigs(role.id);
   };
 
   const handleDelete = async (roleId) => {
@@ -144,6 +204,7 @@ const RoleManagement = () => {
     {
       title: '操作',
       key: 'actions',
+      width: 370,
       render: (_, record) => (
         <Space>
           <Button
@@ -153,6 +214,16 @@ const RoleManagement = () => {
           >
             查看
           </Button>
+          {/* 配置管理按钮 - 需要配置管理权限 */}
+          {hasPermission(PERMISSIONS.CONFIG_MANAGE) && (
+            <Button
+              type="link"
+              icon={<SettingOutlined />}
+              onClick={() => handleConfig(record)}
+            >
+              配置
+            </Button>
+          )}
           {/* 只有拥有角色管理权限的用户才能编辑和删除角色 */}
           {hasPermission(PERMISSIONS.ROLE_MANAGE) && !record.is_system && (
             <>
@@ -207,6 +278,7 @@ const RoleManagement = () => {
         dataSource={roles}
         rowKey="id"
         loading={loading}
+        scroll={{ x: 1200, y: 600 }}
         pagination={{
           showSizeChanger: true,
           showQuickJumper: true,
@@ -319,6 +391,137 @@ const RoleManagement = () => {
               </Descriptions.Item>
             </Descriptions>
           </Card>
+        )}
+      </Modal>
+
+      {/* 角色配置管理模态框 */}
+      <Modal
+        title={`角色配置管理 - ${selectedRole?.name}`}
+        open={configModalVisible}
+        onCancel={() => setConfigModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setConfigModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={800}
+      >
+        {selectedRole && (
+          <div>
+            {/* 添加新配置 */}
+            {hasPermission(PERMISSIONS.CONFIG_MANAGE) && (
+              <Card title="添加角色配置" style={{ marginBottom: 16 }}>
+                <Form
+                  form={configForm}
+                  layout="inline"
+                  onFinish={handleSaveRoleConfig}
+                >
+                  <Form.Item
+                    name="config_key"
+                    rules={[{ required: true, message: '请选择配置项' }]}
+                  >
+                    <Select placeholder="选择配置项" style={{ width: 200 }}>
+                      {Object.entries(CONFIG_TYPES).map(([key, config]) => (
+                        <Option key={key} value={key}>
+                          {config.label}
+                          <Tooltip title={config.description}>
+                            <InfoCircleOutlined style={{ marginLeft: 8, color: '#999' }} />
+                          </Tooltip>
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    name="config_value"
+                    rules={[{ required: true, message: '请输入配置值' }]}
+                  >
+                    <InputNumber
+                      placeholder="配置值"
+                      min={-1}
+                      style={{ width: 120 }}
+                    />
+                  </Form.Item>
+
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit">
+                      添加
+                    </Button>
+                  </Form.Item>
+                </Form>
+              </Card>
+            )}
+
+            {/* 现有配置列表 */}
+            <Card title="当前角色配置">
+              {roleConfigs.length > 0 ? (
+                <Table
+                  dataSource={roleConfigs}
+                  rowKey={(record) => `${record.role_id}-${record.config_key}`}
+                  pagination={false}
+                  size="small"
+                  scroll={{ x: 800, y: 300 }}
+                  columns={[
+                    {
+                      title: '配置项',
+                      dataIndex: 'config_key',
+                      key: 'config_key',
+                      render: (key) => CONFIG_TYPES[key]?.label || key
+                    },
+                    {
+                      title: '配置值',
+                      dataIndex: 'config_value',
+                      key: 'config_value',
+                      render: (value, record) => {
+                        const configType = CONFIG_TYPES[record.config_key];
+                        if (configType?.type === 'number' && value === -1) {
+                          return <span style={{ color: '#52c41a' }}>不限制</span>;
+                        }
+                        return value;
+                      }
+                    },
+                    {
+                      title: '描述',
+                      dataIndex: 'config_key',
+                      key: 'description',
+                      render: (key) => CONFIG_TYPES[key]?.description || '-'
+                    },
+                    {
+                      title: '更新时间',
+                      dataIndex: 'updated_at',
+                      key: 'updated_at',
+                      render: (time) => time ? new Date(time).toLocaleString() : '-'
+                    },
+                    ...(hasPermission(PERMISSIONS.CONFIG_MANAGE) ? [{
+                      title: '操作',
+                      key: 'action',
+                      render: (_, record) => (
+                        <Popconfirm
+                          title="确定要删除这个配置吗？"
+                          onConfirm={() => handleDeleteRoleConfig(record.config_key)}
+                          okText="确定"
+                          cancelText="取消"
+                        >
+                          <Button
+                            type="link"
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                          >
+                            删除
+                          </Button>
+                        </Popconfirm>
+                      )
+                    }] : [])
+                  ]}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                  暂无角色配置
+                </div>
+              )}
+            </Card>
+          </div>
         )}
       </Modal>
     </div>
