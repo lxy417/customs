@@ -298,7 +298,8 @@ const ConfigManagement = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="系统配置" key="system">
             <div style={{ marginBottom: '16px' }}>
-              {canManage && (
+              {/* 移除添加配置按钮，因为系统配置是预定义的 */}
+              {/* {canManage && (
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -310,14 +311,14 @@ const ConfigManagement = () => {
                 >
                   添加配置
                 </Button>
-              )}
+              )} */}
             </div>
             <Table
               columns={systemColumns}
               dataSource={systemConfigs}
               rowKey="config_key"
               loading={loading}
-              pagination={false}
+              scroll={{ x: 800, y: 400 }}
             />
           </TabPane>
 

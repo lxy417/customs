@@ -195,7 +195,7 @@ export const configAPI = {
   // 系统配置
   getSystemConfigs: () => api.get('/api/v1/config/system'),
   updateSystemConfig: (configKey, configData) => api.put(`/api/v1/config/system/${configKey}`, configData),
-  createSystemConfig: (configData) => api.post('/api/v1/config/system', configData),
+  // 移除 createSystemConfig 方法，因为后端不支持创建新的系统配置
   
   // 角色配置覆盖
   getRoleConfigs: (roleId = null) => {

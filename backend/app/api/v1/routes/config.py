@@ -161,7 +161,13 @@ async def set_role_config_override(
         override = config_service.set_role_config_override(role_config)
         
         logger.info(f"用户 {current_user.username} 设置角色 {role_id} 的配置覆盖: {config_key} = {request.config_value}")
-        return {"message": "角色配置覆盖设置成功", "override": override.dict()}
+        
+        # 确保 override 不为 None
+        if override:
+            return {"message": "角色配置覆盖设置成功", "override": override.dict()}
+        else:
+            logger.error("设置角色配置覆盖后返回了None")
+            return {"message": "角色配置覆盖设置成功"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

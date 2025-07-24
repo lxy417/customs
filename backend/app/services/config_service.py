@@ -288,10 +288,12 @@ class ConfigService:
         self.es_client.index(
             index=self.role_config_index,
             document=override_data,
-            id=override_id
+            id=override_id,
+            refresh=True  # 强制刷新索引，确保数据立即可用
         )
 
-        return self.get_role_config_override(role_config.role_id, role_config.config_key)
+        # 直接构造返回对象，而不是重新查询
+        return RoleConfigOverrideInDB(**override_data)
 
     def delete_role_config_override(self, role_id: str, config_key: str) -> bool:
         """删除角色配置覆盖"""
