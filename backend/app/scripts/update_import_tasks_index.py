@@ -1,16 +1,15 @@
-"""
-执行索引更新
-python d:\customs\backend\app\scripts\update_import_tasks_index.py
-显示索引信息
-python d:\customs\backend\app\scripts\update_import_tasks_index.py --info
-备份索引映射
-python d:\customs\backend\app\scripts\update_import_tasks_index.py --backup
-试运行（不执行实际更新）
-python d:\customs\backend\app\scripts\update_import_tasks_index.py --dry-run
-索引更新脚本：为导入任务索引添加回滚相关字段和优化索引结构
-添加回滚相关字段：imported_document_ids, rollback_status, rollback_at, rollback_by, rollback_details
-同时优化索引性能和添加缺失字段
-"""
+#执行索引更新
+#python d:\customs\backend\app\scripts\update_import_tasks_index.py
+#显示索引信息
+#python d:\customs\backend\app\scripts\update_import_tasks_index.py --info
+#备份索引映射
+#python d:\customs\backend\app\scripts\update_import_tasks_index.py --backup
+#试运行（不执行实际更新）
+#python d:\customs\backend\app\scripts\update_import_tasks_index.py --dry-run
+#索引更新脚本：为导入任务索引添加回滚相关字段和优化索引结构
+#添加回滚相关字段：imported_document_ids, rollback_status, rollback_at, rollback_by, rollback_details
+#同时优化索引性能和添加缺失字段
+
 import sys
 import os
 
