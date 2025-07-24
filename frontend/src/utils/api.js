@@ -269,5 +269,31 @@ export const enhancedImportAPI = {
   }
 };
 
+// 回滚相关API
+export const rollbackAPI = {
+  // 预览回滚操作
+  previewRollback: (taskId) => {
+    return api.get(`/api/v1/rollback/preview/${taskId}`);
+  },
+
+  // 执行回滚操作
+  executeRollback: (taskId, dryRun = false) => {
+    return api.post('/api/v1/rollback/execute', {
+      task_id: taskId,
+      dry_run: dryRun
+    });
+  },
+
+  // 检查任务是否可以回滚
+  canRollback: (taskId) => {
+    return api.get(`/api/v1/rollback/can-rollback/${taskId}`);
+  },
+
+  // 获取回滚历史记录
+  getRollbackHistory: (params = {}) => {
+    return api.get('/api/v1/rollback/history', { params });
+  }
+};
+
 
 export default api;

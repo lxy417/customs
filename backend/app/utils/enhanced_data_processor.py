@@ -354,12 +354,14 @@ class EnhancedDataProcessor:
         logger.info(f"ES _id重复检测完成: 唯一记录 {len(unique_records)}, 重复记录 {len(duplicate_records)}")
         return unique_records, duplicate_records
 
+    # 在 import_to_database 方法中添加文档ID记录
     async def import_to_database(
         self, 
         file_path: str, 
         batch_size: int = 500,
         check_duplicates: bool = True,
-        use_id_dedup: bool = True
+        use_id_dedup: bool = True,
+        task_id: Optional[str] = None  # 新增任务ID参数
     ) -> Dict[str, Any]:
         """将处理后的数据导入到Elasticsearch"""
         try:
@@ -382,18 +384,34 @@ class EnhancedDataProcessor:
                     for record in records:
                         record['_es_id'] = self._generate_document_id(record)
             
+            # 收集将要导入的文档ID
+            imported_document_ids = []
+            
             # 使用DataService进行批量导入
             if records:
+                # 记录导入的文档ID
+                for record in records:
+                    if '_es_id' in record:
+                        imported_document_ids.append(record['_es_id'])
+                
                 result = self.data_service.bulk_create_customs_data(records, batch_size)
+                
+                # 如果提供了任务ID，更新导入的文档ID列表
+                if task_id and imported_document_ids:
+                    from app.services.import_task_service import ImportTaskService
+                    task_service = ImportTaskService()
+                    await task_service.update_imported_document_ids(task_id, imported_document_ids)
+                    logger.info(f"任务 {task_id} 记录了 {len(imported_document_ids)} 个导入文档ID")
                 
                 return {
                     'success_count': result.get('success', 0),
                     'failed_count': result.get('failed', 0),
                     'duplicate_count': len(duplicate_records),
                     'total_count': len(df),
+                    'imported_document_ids': imported_document_ids,  # 返回导入的文档ID
                     'errors': result.get('errors', []),
-                    'failed_records': [],  # DataService已经处理了错误记录
-                    'duplicate_records': duplicate_records[:5]  # 只返回前5条重复记录
+                    'failed_records': [],
+                    'duplicate_records': duplicate_records[:5]
                 }
             else:
                 return {
@@ -401,6 +419,7 @@ class EnhancedDataProcessor:
                     'failed_count': 0,
                     'duplicate_count': len(duplicate_records),
                     'total_count': len(df),
+                    'imported_document_ids': [],
                     'errors': [],
                     'failed_records': [],
                     'duplicate_records': duplicate_records[:5]
@@ -413,6 +432,7 @@ class EnhancedDataProcessor:
                 'failed_count': 0,
                 'duplicate_count': 0,
                 'total_count': 0,
+                'imported_document_ids': [],
                 'errors': [{'error_type': 'ImportError', 'error_reason': str(e)}],
                 'failed_records': [],
                 'duplicate_records': []

@@ -10,6 +10,7 @@ from app.services.import_task_service import ImportTaskService
 from app.api.v1.routes.auth import get_current_user
 from app.services.user_service import UserInDB
 from app.config.logging_config import get_logger
+from app.utils.permissions import require_permissions
 
 # 使用专门的日志器
 logger = get_logger('app.api.v1.routes.enhanced_import')
@@ -20,8 +21,9 @@ temp_dir = Path(tempfile.mkdtemp())
 processed_dir = Path("./processed_data")
 processed_dir.mkdir(exist_ok=True)
 
+# 在 process_files_background 函数中修改导入逻辑
 async def process_files_background(
-    files: List[Dict[str, str]],  # 修改为包含原始文件名的字典列表
+    files: List[Dict[str, str]],
     task_id: str, 
     batch_size: int = 500,
     skip_duplicates: bool = True
@@ -34,11 +36,12 @@ async def process_files_background(
         total_success = 0
         total_failed = 0
         total_duplicates = 0
-        original_total = 0  # 新增原文件总记录数
+        original_total = 0
         processed_files = []
         customs_codes = set()
         all_dates = []
         all_errors = []
+        all_imported_document_ids = []  # 收集所有导入的文档ID
         
         for file_info in files:
             file_path = file_info['file_path']
@@ -47,7 +50,7 @@ async def process_files_background(
             try:
                 logger.info(f"处理文件: {original_filename} (路径: {file_path})")
                 
-                # 预处理文件 - 移除 await，因为这不是异步方法
+                # 预处理文件
                 result = processor.process_excel_file(
                     file_path=file_path,
                     skip_duplicates=skip_duplicates
@@ -56,7 +59,6 @@ async def process_files_background(
                 if not result['success']:
                     raise Exception(result.get('error', '文件处理失败'))
                 
-                # 累加原文件总记录数
                 original_total += result.get('total_records', 0)
                 
                 # 导入到数据库
@@ -64,18 +66,25 @@ async def process_files_background(
                 file_failed = 0
                 file_duplicates = 0
                 file_errors = []
-                file_original_total = result.get('total_records', 0)  # 单个文件的原始记录数
+                file_original_total = result.get('total_records', 0)
+                file_imported_ids = []  # 单个文件的导入ID
                 
                 for output_file in result['output_files']:
                     import_result = await processor.import_to_database(
                         file_path=output_file['filepath'],
                         batch_size=batch_size,
-                        check_duplicates=True
+                        check_duplicates=True,
+                        task_id=task_id  # 传递任务ID
                     )
                     
                     file_success += import_result['success_count']
                     file_failed += import_result['failed_count']
                     file_duplicates += import_result['duplicate_count']
+                    
+                    # 收集导入的文档ID
+                    if import_result.get('imported_document_ids'):
+                        file_imported_ids.extend(import_result['imported_document_ids'])
+                        all_imported_document_ids.extend(import_result['imported_document_ids'])
                     
                     # 收集错误信息
                     if import_result.get('errors'):
@@ -102,13 +111,14 @@ async def process_files_background(
                         logger.warning(f"收集统计信息失败: {str(e)}")
                 
                 processed_files.append({
-                    'filename': original_filename,  # 使用原始文件名
+                    'filename': original_filename,
                     'success_count': file_success,
                     'failed_count': file_failed,
                     'duplicate_count': file_duplicates,
-                    'original_total_count': file_original_total,  # 新增原文件记录数
+                    'original_total_count': file_original_total,
+                    'imported_document_count': len(file_imported_ids),  # 新增导入文档数量
                     'output_files': result['output_files'],
-                    'errors': file_errors[:3]  # 只保留前3个错误
+                    'errors': file_errors[:3]
                 })
                 
             except Exception as e:
@@ -135,20 +145,25 @@ async def process_files_background(
             start_date = min(all_dates).strftime('%Y-%m-%d')
             end_date = max(all_dates).strftime('%Y-%m-%d')
         
-        # 更新任务状态
+        # 更新任务状态，包括导入的文档ID
         await task_service.update_task(
             task_id=task_id,
             status='completed' if total_failed == 0 else 'failed',
             success_count=total_success,
             failed_count=total_failed,
             duplicate_count=total_duplicates,
-            original_total_count=original_total,  # 新增原文件总记录数
+            original_total_count=original_total,
             customs_codes=list(customs_codes),
             start_date=start_date,
             end_date=end_date,
             processed_files=processed_files,
-            error_details=all_errors[:10]  # 只保留前10个错误
+            error_details=all_errors[:10]
         )
+        
+        # 单独更新导入的文档ID列表
+        if all_imported_document_ids:
+            await task_service.update_imported_document_ids(task_id, all_imported_document_ids)
+            logger.info(f"任务 {task_id} 总共导入了 {len(all_imported_document_ids)} 个文档")
         
         logger.info(f"任务完成: {task_id}, 成功: {total_success}, 失败: {total_failed}, 重复: {total_duplicates}, 原始总数: {original_total}")
         
@@ -170,6 +185,7 @@ async def process_files_background(
                 logger.warning(f"清理临时文件失败: {file_path}, {str(e)}")
 
 @router.post("/upload", response_model=Dict[str, Any], tags=["增强数据导入"])
+@require_permissions(["data_import"])
 async def upload_files(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
@@ -245,6 +261,7 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
 
 @router.get("/history", response_model=Dict[str, Any], tags=["增强数据导入"])
+@require_permissions(["data_import"])
 async def get_import_history(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -267,6 +284,7 @@ async def get_import_history(
     return result
 
 @router.get("/task/{task_id}", response_model=Dict[str, Any], tags=["增强数据导入"])
+@require_permissions(["data_import"])
 async def get_task_detail(
     task_id: str,
     current_user: UserInDB = Depends(get_current_user)
@@ -285,6 +303,7 @@ async def get_task_detail(
     return task
 
 @router.get("/statistics", response_model=Dict[str, Any], tags=["增强数据导入"])
+@require_permissions(["data_import"])
 async def get_import_statistics(
     current_user: UserInDB = Depends(get_current_user)
 ):

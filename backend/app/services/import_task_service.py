@@ -13,6 +13,7 @@ class ImportTaskService:
         self.index_name = f"{settings.DATA_INDEX}_import_tasks"
         self._create_index_if_not_exists()
 
+    # 在 _create_index_if_not_exists 方法中添加回滚相关字段
     def _create_index_if_not_exists(self):
         """创建导入任务索引"""
         if not self.es_client.indices.exists(index=self.index_name):
@@ -22,12 +23,12 @@ class ImportTaskService:
                         "task_id": {"type": "keyword"},
                         "original_filename": {"type": "text"},
                         "user_id": {"type": "keyword"},
-                        "status": {"type": "keyword"},  # processing, completed, failed
+                        "status": {"type": "keyword"},  # processing, completed, failed, rolled_back
                         "total_files": {"type": "integer"},
                         "success_count": {"type": "integer"},
                         "failed_count": {"type": "integer"},
-                        "duplicate_count": {"type": "integer"},  # 新增重复记录数
-                        "original_total_count": {"type": "integer"},  # 新增原文件总记录数
+                        "duplicate_count": {"type": "integer"},
+                        "original_total_count": {"type": "integer"},
                         "total_count": {"type": "integer"},
                         "customs_codes": {"type": "keyword"},
                         "start_date": {"type": "date"},
@@ -36,12 +37,78 @@ class ImportTaskService:
                         "completed_at": {"type": "date"},
                         "processed_files": {"type": "object"},
                         "error_details": {"type": "object"},
-                        "processing_options": {"type": "object"}
+                        "processing_options": {"type": "object"},
+                        # 新增回滚相关字段
+                        "imported_document_ids": {"type": "keyword"},  # 导入的文档ID列表
+                        "rollback_status": {"type": "keyword"},  # none, pending, completed, failed
+                        "rollback_at": {"type": "date"},  # 回滚时间
+                        "rollback_by": {"type": "keyword"},  # 回滚操作用户
+                        "rollback_details": {"type": "object"}  # 回滚详情
                     }
                 }
             }
             self.es_client.indices.create(index=self.index_name, body=mapping)
             logger.info(f"创建导入任务索引: {self.index_name}")
+
+    # 添加更新导入文档ID的方法
+    async def update_imported_document_ids(
+        self,
+        task_id: str,
+        document_ids: List[str]
+    ) -> bool:
+        """更新任务的导入文档ID列表"""
+        try:
+            update_doc = {
+                'imported_document_ids': document_ids,
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            response = self.es_client.update(
+                index=self.index_name,
+                id=task_id,
+                body={'doc': update_doc}
+            )
+            
+            return response['result'] in ['updated', 'noop']
+            
+        except Exception as e:
+            logger.error(f"更新导入文档ID失败: {task_id}, {str(e)}")
+            return False
+
+    # 添加回滚状态更新方法
+    async def update_rollback_status(
+        self,
+        task_id: str,
+        rollback_status: str,
+        rollback_by: str,
+        rollback_details: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """更新回滚状态"""
+        try:
+            update_doc = {
+                'rollback_status': rollback_status,
+                'rollback_by': rollback_by,
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            if rollback_status == 'completed':
+                update_doc['rollback_at'] = datetime.now().isoformat()
+                update_doc['status'] = 'rolled_back'
+            
+            if rollback_details:
+                update_doc['rollback_details'] = rollback_details
+            
+            response = self.es_client.update(
+                index=self.index_name,
+                id=task_id,
+                body={'doc': update_doc}
+            )
+            
+            return response['result'] in ['updated', 'noop']
+            
+        except Exception as e:
+            logger.error(f"更新回滚状态失败: {task_id}, {str(e)}")
+            return False
 
     async def create_task(
         self, 

@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   Upload, Button, Card, Typography, message, Progress, Space, Alert, 
   Table, Tag, Tabs, Statistic, Row, Col, Modal, Descriptions, Select,
-  Pagination, Tooltip, Divider, List, Badge
+  Pagination, Tooltip, Divider, List, Badge, Steps
 } from 'antd';
 import { 
   UploadOutlined, FileExcelOutlined, HistoryOutlined, 
   BarChartOutlined, EyeOutlined, ReloadOutlined, SettingOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, SyncOutlined
+  CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, RollbackOutlined,
+  ExclamationCircleOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
-import { enhancedImportAPI } from '../utils/api';
+import { enhancedImportAPI, rollbackAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import moment from 'moment';
 
@@ -49,6 +50,12 @@ const EnhancedImport = () => {
   // 任务详情模态框
   const [taskDetailVisible, setTaskDetailVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  
+  // 回滚相关状态
+  const [rollbackModalVisible, setRollbackModalVisible] = useState(false);
+  const [rollbackPreview, setRollbackPreview] = useState(null);
+  const [rollbackLoading, setRollbackLoading] = useState(false);
+  const [selectedRollbackTask, setSelectedRollbackTask] = useState(null);
   
   const { user } = useAuth();
 
@@ -159,39 +166,120 @@ const EnhancedImport = () => {
     }
   };
 
+  // 回滚操作函数
+  const handleRollbackPreview = async (taskId) => {
+    try {
+      setRollbackLoading(true);
+      const result = await rollbackAPI.previewRollback(taskId);
+      if (result.success) {
+        setRollbackPreview(result.preview);
+        setSelectedRollbackTask(taskId);
+        setRollbackModalVisible(true);
+      } else {
+        message.error(result.error || '预览回滚失败');
+      }
+    } catch (error) {
+      message.error('预览回滚失败');
+    } finally {
+      setRollbackLoading(false);
+    }
+  };
+
+  const handleRollbackExecute = async (dryRun = false) => {
+    try {
+      setRollbackLoading(true);
+      const result = await rollbackAPI.executeRollback(selectedRollbackTask, dryRun);
+      if (result.success) {
+        message.success(dryRun ? '回滚预演成功' : '回滚执行成功');
+        setRollbackModalVisible(false);
+        fetchHistoryData(); // 刷新历史记录
+      } else {
+        message.error(result.error || '回滚失败');
+      }
+    } catch (error) {
+      message.error('回滚操作失败');
+    } finally {
+      setRollbackLoading(false);
+    }
+  };
+
+  // 统一的状态配置函数
+  const getStatusConfig = (status) => {
+    const statusConfigs = {
+      'processing': { 
+        color: 'blue', 
+        icon: <SyncOutlined spin />, 
+        text: '处理中',
+        description: '数据正在处理中...'
+      },
+      'completed': { 
+        color: 'green', 
+        icon: <CheckCircleOutlined />, 
+        text: '完成',
+        description: '数据导入成功完成'
+      },
+      'failed': { 
+        color: 'red', 
+        icon: <CloseCircleOutlined />, 
+        text: '失败',
+        description: '数据导入失败'
+      },
+      'rolled_back': { 
+        color: 'orange', 
+        icon: <RollbackOutlined />, 
+        text: '已回滚',
+        description: '数据已被回滚删除'
+      },
+      'rollback_pending': { 
+        color: 'purple', 
+        icon: <SyncOutlined spin />, 
+        text: '回滚中',
+        description: '正在执行回滚操作'
+      },
+      'rollback_failed': { 
+        color: 'volcano', 
+        icon: <ExclamationCircleOutlined />, 
+        text: '回滚失败',
+        description: '回滚操作执行失败'
+      }
+    };
+    return statusConfigs[status] || { 
+      color: 'default', 
+      icon: <InfoCircleOutlined />, 
+      text: status || '未知',
+      description: '未知状态'
+    };
+  };
+
   // 历史记录表格列定义
   const historyColumns = [
     {
       title: '任务ID',
       dataIndex: 'task_id',
       key: 'task_id',
-      width: 120,
+      width: 200,
       render: (text) => <Text code>{text}</Text>
     },
     {
       title: '文件名',
       dataIndex: 'original_filename',
       key: 'original_filename',
+      width: 200,
       ellipsis: true
     },
     {
-      title: '上传用户',  // 新增上传用户列
+      title: '上传用户',
       dataIndex: 'user_id',
       key: 'user_id',
-      width: 100
+      width: 120
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: 120,
       render: (status) => {
-        const statusConfig = {
-          'processing': { color: 'blue', icon: <SyncOutlined spin />, text: '处理中' },
-          'completed': { color: 'green', icon: <CheckCircleOutlined />, text: '完成' },
-          'failed': { color: 'red', icon: <CloseCircleOutlined />, text: '失败' }
-        };
-        const config = statusConfig[status] || { color: 'default', text: status };
+        const config = getStatusConfig(status);
         return (
           <Tag color={config.color} icon={config.icon}>
             {config.text}
@@ -201,59 +289,111 @@ const EnhancedImport = () => {
     },
     {
       title: '海关编码',
-      dataIndex: 'customs_codes',
-      key: 'customs_codes',
-      width: 120,
-      render: (codes) => codes ? codes.join(', ') : '-'
+      dataIndex: 'customs_code',
+      key: 'customs_code',
+      width: 100,
+      render: (text) => {
+        if (!text) return '-';
+        return <Tag color="blue">{text}</Tag>;
+      }
     },
     {
       title: '数据日期范围',
       key: 'date_range',
-      width: 180,
+      width: 200,
       render: (_, record) => {
-        if (record.start_date && record.end_date) {
-          return `${record.start_date} ~ ${record.end_date}`;
+        // 尝试多种可能的数据结构
+        let startDate = null;
+        let endDate = null;
+        
+        if (record.date_range) {
+          startDate = record.date_range.start || record.date_range.start_date;
+          endDate = record.date_range.end || record.date_range.end_date;
+        } else if (record.start_date && record.end_date) {
+          startDate = record.start_date;
+          endDate = record.end_date;
+        } else if (record.date_start && record.date_end) {
+          startDate = record.date_start;
+          endDate = record.date_end;
         }
-        return '-';
+        
+        if (startDate && endDate) {
+          return (
+            <div>
+              <div><Text type="secondary">开始:</Text> {startDate}</div>
+              <div><Text type="secondary">结束:</Text> {endDate}</div>
+            </div>
+          );
+        }
+        return <Text type="secondary">-</Text>;
       }
     },
     {
-      title: '处理结果',  // 修改列标题
+      title: '处理结果',
       key: 'processing_result',
-      width: 150,
-      render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Space size={4}>
-            <Text style={{ color: '#52c41a' }}>成功: {record.success_count || 0}</Text>
-          </Space>
-          <Space size={4}>
-            <Text style={{ color: '#faad14' }}>重复: {record.duplicate_count || 0}</Text>
-          </Space>
-          <Space size={4}>
-            <Text style={{ color: '#f5222d' }}>失败: {record.failed_count || 0}</Text>
-          </Space>
-        </Space>
-      )
+      width: 180,
+      render: (_, record) => {
+        const successCount = record.success_count || record.successful_count || 0;
+        const duplicateCount = record.duplicate_count || record.duplicated_count || 0;
+        const failedCount = record.failed_count || record.error_count || 0;
+        const totalCount = record.original_total_count || record.total_count || 0;
+        
+        return (
+          <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
+            <div style={{ marginBottom: '2px' }}>
+              <span style={{ color: '#52c41a', fontWeight: 'bold' }}>✓ 成功: </span>
+              <span>{successCount.toLocaleString()}</span>
+            </div>
+            <div style={{ marginBottom: '2px' }}>
+              <span style={{ color: '#faad14', fontWeight: 'bold' }}>⚠ 重复: </span>
+              <span>{duplicateCount.toLocaleString()}</span>
+            </div>
+            <div style={{ marginBottom: '2px' }}>
+              <span style={{ color: '#f5222d', fontWeight: 'bold' }}>✗ 失败: </span>
+              <span>{failedCount.toLocaleString()}</span>
+            </div>
+            <Divider style={{ margin: '4px 0' }} />
+            <div style={{ color: '#666', fontWeight: 'bold' }}>
+              <span>总计: {totalCount.toLocaleString()}</span>
+            </div>
+          </div>
+        );
+      }
     },
     {
       title: '导入时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 150,
-      render: (time) => moment(time).format('YYYY-MM-DD HH:mm')
+      width: 180,
+      render: (time) => moment(time).format('YYYY-MM-DD HH:mm:ss')
     },
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 150,
+      fixed: 'right',
       render: (_, record) => (
-        <Button 
-          type="link" 
-          icon={<EyeOutlined />}
-          onClick={() => viewTaskDetail(record.task_id)}
-        >
-          详情
-        </Button>
+        <Space>
+          <Button 
+            type="link" 
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => viewTaskDetail(record.task_id)}
+          >
+            详情
+          </Button>
+          {record.status === 'completed' && !record.rollback_status && (
+            <Button 
+              type="link" 
+              size="small"
+              danger
+              icon={<RollbackOutlined />}
+              onClick={() => handleRollbackPreview(record.task_id)}
+            >
+              回滚
+            </Button>
+          )}
+        </Space>
       )
     }
   ];
@@ -276,6 +416,235 @@ const EnhancedImport = () => {
       setFileList(newFileList);
     }
   };
+
+  // 回滚模态框组件
+  const RollbackModal = () => (
+    <Modal
+      title={
+        <Space>
+          <RollbackOutlined style={{ color: '#ff4d4f' }} />
+          <span>数据回滚确认</span>
+        </Space>
+      }
+      visible={rollbackModalVisible}
+      onCancel={() => setRollbackModalVisible(false)}
+      footer={[
+        <Button key="cancel" onClick={() => setRollbackModalVisible(false)}>
+          取消
+        </Button>,
+        <Button 
+          key="preview" 
+          onClick={() => handleRollbackExecute(true)}
+          loading={rollbackLoading}
+          icon={<EyeOutlined />}
+        >
+          预演回滚
+        </Button>,
+        <Button 
+          key="execute" 
+          type="primary" 
+          danger
+          onClick={() => handleRollbackExecute(false)}
+          loading={rollbackLoading}
+          icon={<RollbackOutlined />}
+        >
+          确认回滚
+        </Button>
+      ]}
+      width={900}
+    >
+      {rollbackPreview && (
+        <div>
+          <Alert
+            message="⚠️ 重要警告"
+            description="回滚操作将永久删除导入的数据，此操作不可逆转，请谨慎操作！"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 24 }}
+          />
+          
+          {/* 回滚进度步骤 */}
+          <Steps
+            current={0}
+            size="small"
+            style={{ marginBottom: 24 }}
+            items={[
+              {
+                title: '预览数据',
+                description: '查看将要删除的数据',
+                icon: <EyeOutlined />
+              },
+              {
+                title: '确认回滚',
+                description: '执行回滚操作',
+                icon: <RollbackOutlined />
+              },
+              {
+                title: '完成',
+                description: '回滚操作完成',
+                icon: <CheckCircleOutlined />
+              }
+            ]}
+          />
+          
+          {/* 任务信息卡片 */}
+          <Card 
+            title="任务信息" 
+            size="small" 
+            style={{ marginBottom: 16 }}
+            extra={<Tag color="blue">任务详情</Tag>}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Descriptions size="small" column={1}>
+                  <Descriptions.Item label="任务ID">
+                    <Text code>{rollbackPreview.task_info.task_id}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="原始文件">
+                    <Text strong>{rollbackPreview.task_info.original_filename}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="导入用户">
+                    <Tag color="geekblue">{rollbackPreview.task_info.user_id}</Tag>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Col>
+              <Col span={12}>
+                <Descriptions size="small" column={1}>
+                  <Descriptions.Item label="导入时间">
+                    {moment(rollbackPreview.task_info.created_at).format('YYYY-MM-DD HH:mm:ss')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="处理状态">
+                    <Tag color="green">已完成</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="数据状态">
+                    <Tag color="orange">待回滚</Tag>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Col>
+            </Row>
+          </Card>
+          
+          {/* 回滚统计信息 */}
+          <Card 
+            title="回滚统计" 
+            size="small" 
+            style={{ marginBottom: 16 }}
+            extra={<Tag color="volcano">数据统计</Tag>}
+          >
+            <Row gutter={16}>
+              <Col span={6}>
+                <Statistic
+                  title="总导入文档"
+                  value={rollbackPreview.rollback_summary.total_imported_docs}
+                  valueStyle={{ color: '#1890ff' }}
+                  prefix={<FileExcelOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="现存文档"
+                  value={rollbackPreview.rollback_summary.existing_docs}
+                  valueStyle={{ color: '#52c41a' }}
+                  prefix={<CheckCircleOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="将被删除"
+                  value={rollbackPreview.rollback_summary.will_be_deleted}
+                  valueStyle={{ color: '#ff4d4f' }}
+                  prefix={<CloseCircleOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="已缺失文档"
+                  value={rollbackPreview.rollback_summary.missing_docs}
+                  valueStyle={{ color: '#faad14' }}
+                  prefix={<ExclamationCircleOutlined />}
+                />
+              </Col>
+            </Row>
+          </Card>
+          
+          {/* 数据样本预览 */}
+          {rollbackPreview.sample_data && rollbackPreview.sample_data.length > 0 && (
+            <Card 
+              title="数据样本预览" 
+              size="small"
+              extra={<Tag color="purple">前5条数据</Tag>}
+            >
+              <Table
+                dataSource={rollbackPreview.sample_data.map((item, index) => ({
+                  key: index,
+                  id: item.id,
+                  customs_code: item.source.海关编码,
+                  product_name: item.source.详细产品名称,
+                  country: item.source.国家,
+                  date: item.source.数据日期
+                }))}
+                columns={[
+                  {
+                    title: '文档ID',
+                    dataIndex: 'id',
+                    key: 'id',
+                    width: 200,
+                    render: (text) => <Text code style={{ fontSize: '12px' }}>{text}</Text>
+                  },
+                  {
+                    title: '海关编码',
+                    dataIndex: 'customs_code',
+                    key: 'customs_code',
+                    width: 100,
+                    render: (text) => <Tag color="blue">{text}</Tag>
+                  },
+                  {
+                    title: '产品名称',
+                    dataIndex: 'product_name',
+                    key: 'product_name',
+                    ellipsis: true,
+                    render: (text) => <Text>{text}</Text>
+                  },
+                  {
+                    title: '国家',
+                    dataIndex: 'country',
+                    key: 'country',
+                    width: 80,
+                    render: (text) => <Tag color="geekblue">{text}</Tag>
+                  },
+                  {
+                    title: '数据日期',
+                    dataIndex: 'date',
+                    key: 'date',
+                    width: 100,
+                    render: (text) => <Text>{text}</Text>
+                  }
+                ]}
+                pagination={false}
+                size="small"
+                scroll={{ y: 200 }}
+              />
+            </Card>
+          )}
+          
+          {/* 操作提示 */}
+          <Alert
+            message="操作说明"
+            description={
+              <div>
+                <p>• <strong>预演回滚</strong>：模拟回滚过程，不会实际删除数据</p>
+                <p>• <strong>确认回滚</strong>：正式执行回滚，将永久删除上述数据</p>
+                <p>• 回滚完成后，任务状态将变更为"已回滚"</p>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginTop: 16 }}
+          />
+        </div>
+      )}
+    </Modal>
+  );
 
   return (
     <div style={{ padding: '24px' }}>
@@ -377,6 +746,9 @@ const EnhancedImport = () => {
                   <Option value="processing">处理中</Option>
                   <Option value="completed">完成</Option>
                   <Option value="failed">失败</Option>
+                  <Option value="rolled_back">已回滚</Option>
+                  <Option value="rollback_pending">回滚中</Option>
+                  <Option value="rollback_failed">回滚失败</Option>
                 </Select>
                 <Button icon={<ReloadOutlined />} onClick={fetchHistoryData}>
                   刷新
@@ -389,6 +761,7 @@ const EnhancedImport = () => {
               dataSource={historyData}
               loading={historyLoading}
               rowKey="task_id"
+              scroll={{ x: 1500, y: 600 }}
               pagination={{
                 ...historyPagination,
                 showSizeChanger: true,
@@ -464,9 +837,14 @@ const EnhancedImport = () => {
             <Descriptions bordered column={2}>
               <Descriptions.Item label="任务ID">{selectedTask.task_id}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={selectedTask.status === 'completed' ? 'green' : selectedTask.status === 'failed' ? 'red' : 'blue'}>
-                  {selectedTask.status === 'completed' ? '完成' : selectedTask.status === 'failed' ? '失败' : '处理中'}
-                </Tag>
+                {(() => {
+                  const config = getStatusConfig(selectedTask.status);
+                  return (
+                    <Tag color={config.color} icon={config.icon}>
+                      {config.text}
+                    </Tag>
+                  );
+                })()}
               </Descriptions.Item>
               <Descriptions.Item label="原始文件名">{selectedTask.original_filename}</Descriptions.Item>
               <Descriptions.Item label="上传用户">{selectedTask.user_id}</Descriptions.Item>
@@ -530,6 +908,9 @@ const EnhancedImport = () => {
           </div>
         )}
       </Modal>
+
+      {/* 回滚模态框 */}
+      <RollbackModal />
     </div>
   );
 };
