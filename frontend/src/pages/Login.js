@@ -17,7 +17,7 @@ const Login = () => {
   // 获取登录前的位置
   // 如果是主动登出后的登录，直接跳转到首页
   // 否则跳转到之前访问的页面，默认为首页
-  const from = isManualLogout ? '/home' : (location.state?.from?.pathname || '/home');
+  const from = isManualLogout ? '/new-home' : (location.state?.from?.pathname || '/new-home');
 
   const handleSubmit = async (values) => {
     const success = await login(values.username, values.password);

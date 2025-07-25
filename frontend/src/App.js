@@ -104,7 +104,7 @@ function App() {
           />
           
           {/* 默认重定向到首页 */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/" element={<Navigate to="/new-home" replace />} />
           
           {/* 404页面 */}
           <Route path="*" element={<NotFound />} />

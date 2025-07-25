@@ -50,7 +50,7 @@ export const PrivateRoute = ({ element, path, requiredPermissions, fallbackPath 
 };
 
 // 管理员路由组件（向后兼容）
-export const AdminRoute = ({ element, fallbackPath = '/home' }) => {
+export const AdminRoute = ({ element, fallbackPath = '/new-home' }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
