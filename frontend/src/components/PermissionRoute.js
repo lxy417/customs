@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { createPermissionChecker, ROUTE_PERMISSIONS } from '../utils/permissions';
 
 // 权限路由组件
-const PermissionRoute = ({ element, path, requiredPermissions, fallbackPath = '/home' }) => {
+const PermissionRoute = ({ element, path, requiredPermissions, fallbackPath = '/new-home' }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
 

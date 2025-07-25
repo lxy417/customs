@@ -531,7 +531,7 @@ const DataQuery = () => {
   ];
 
   return (
-    <div className="data-query-page" style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
+    <div className="data-query-page" style={{height: '100%', display: 'flex', flexDirection: 'column',margin: '0 20px'}}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
         <Title level={2}>海关数据查询</Title>
         <Space size="middle">

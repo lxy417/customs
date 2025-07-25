@@ -1,5 +1,5 @@
 import { Layout, Dropdown, Menu, Avatar, Typography, Space } from 'antd';
-import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined, ControlOutlined } from '@ant-design/icons';
+import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined, ControlOutlined, HomeOutlined } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions, PERMISSIONS } from '../utils/permissions';
@@ -47,6 +47,7 @@ const AppHeader = () => {
     if (path.includes('/user-management')) return ['user-management'];
     if (path.includes('/config-management')) return ['config-management'];
     if (path.includes('/import')) return ['enhanced-import'];
+    if (path.includes('/new-home')) return ['new-home'];
     if (path.includes('/home')) return ['home'];
     return ['home'];
   };
@@ -54,12 +55,17 @@ const AppHeader = () => {
   // 构建菜单项数组
   const getMenuItems = () => {
     const menuItems = [];
+    // menuItems.push({
+    //   key: 'home',
+    //   icon: <HomeOutlined />,
+    //   label: <Link to="/home">首页</Link>,
+    // });
 
-    // 首页 - 所有用户都可以访问
+    // 新首页 - 所有用户都可以访问
     menuItems.push({
-      key: 'home',
-      icon: <PieChartOutlined />,
-      label: <Link to="/home">首页</Link>,
+      key: 'new-home',
+      icon: <HomeOutlined />,
+      label: <Link to="/new-home">首页</Link>,
     });
 
     // 数据查询 - 需要 data_view 权限

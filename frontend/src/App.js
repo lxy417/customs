@@ -9,6 +9,7 @@ import DataQuery from './pages/DataQuery';
 import UserManagement from './pages/UserManagement';
 import ConfigManagement from './pages/ConfigManagement';
 import Home from './pages/Home';
+import NewHome from './pages/NewHome';
 import NotFound from './pages/NotFound';
 import Header from './components/Header';
 import './App.css';
@@ -29,10 +30,21 @@ function App() {
           {/* 登录页面 - 如果已登录则重定向到首页 */}
           <Route 
             path="/login" 
-            element={isAuthenticated ? <Navigate to="/home" replace /> : <Login />} 
+            element={isAuthenticated ? <Navigate to="/new-home" replace /> : <Login />} 
           />
           
-          {/* 首页 - 需要登录但无特殊权限要求 */}
+          {/* 新首页 - 需要登录但无特殊权限要求 */}
+          <Route 
+            path="/new-home" 
+            element={
+              <PrivateRoute 
+                element={<NewHome />} 
+                path="/new-home"
+              />
+            } 
+          />
+          
+          {/* 原首页 - 保留作为备用 */}
           <Route 
             path="/home" 
             element={

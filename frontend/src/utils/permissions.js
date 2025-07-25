@@ -17,6 +17,7 @@ export const PERMISSIONS = {
 // 路由权限配置
 export const ROUTE_PERMISSIONS = {
   '/home': [], // 所有登录用户都可以访问
+  '/new-home': [], // 所有登录用户都可以访问
   '/data-query': [PERMISSIONS.DATA_VIEW],
   '/import': [PERMISSIONS.DATA_IMPORT],
   '/user-management': [PERMISSIONS.USER_MANAGE],
