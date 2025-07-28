@@ -1,5 +1,5 @@
 import { Layout, Dropdown, Menu, Avatar, Typography, Space, Button } from 'antd';
-import { PieChartOutlined, ImportOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined, ControlOutlined, HomeOutlined, LoginOutlined } from '@ant-design/icons';
+import { PieChartOutlined, UserOutlined, LogoutOutlined, SettingOutlined, CloudUploadOutlined, ControlOutlined, HomeOutlined, LoginOutlined } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions, PERMISSIONS } from '../utils/permissions';
@@ -48,7 +48,7 @@ const AppHeader = () => {
     if (path.includes('/data-query')) return ['data-query'];
     if (path.includes('/user-management')) return ['user-management'];
     if (path.includes('/config-management')) return ['config-management'];
-    if (path.includes('/import')) return ['enhanced-import'];
+    if (path.includes('/import')) return ['import'];
     if (path.includes('/new-home')) return ['new-home'];
     if (path.includes('/home')) return ['home'];
     return ['home'];

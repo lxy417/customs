@@ -6,7 +6,7 @@ import { createPermissionChecker, ROUTE_PERMISSIONS } from '../utils/permissions
 
 // 权限路由组件
 const PermissionRoute = ({ element, path, requiredPermissions, fallbackPath = '/new-home' }) => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, isManualLogout } = useAuth();
   const location = useLocation();
 
   // 加载中显示
@@ -20,6 +20,11 @@ const PermissionRoute = ({ element, path, requiredPermissions, fallbackPath = '/
 
   // 未登录重定向到登录页
   if (!isAuthenticated) {
+    // 如果是主动登出，不进行重定向，让AuthContext的logout函数处理跳转
+    if (isManualLogout) {
+      return null; // 返回null，等待AuthContext处理跳转
+    }
+    // 否则传递当前位置信息
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -51,7 +56,7 @@ export const PrivateRoute = ({ element, path, requiredPermissions, fallbackPath 
 
 // 管理员路由组件（向后兼容）
 export const AdminRoute = ({ element, fallbackPath = '/new-home' }) => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, isManualLogout } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -63,6 +68,11 @@ export const AdminRoute = ({ element, fallbackPath = '/new-home' }) => {
   }
 
   if (!isAuthenticated) {
+    // 如果是主动登出，不进行重定向，让AuthContext的logout函数处理跳转
+    if (isManualLogout) {
+      return null; // 返回null，等待AuthContext处理跳转
+    }
+    // 否则传递当前位置信息
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

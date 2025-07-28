@@ -14,8 +14,9 @@ const Login = () => {
   const { login, loading, isManualLogout } = useAuth();
 
   // 获取登录前的位置和消息
+  // 如果是主动登出，始终跳转到首页，忽略其他跳转信息
   const from = isManualLogout ? '/new-home' : (location.state?.from?.pathname || '/new-home');
-  const message = location.state?.message;
+  const message = isManualLogout ? null : location.state?.message;
 
   const handleSubmit = async (values) => {
     const success = await login(values.username, values.password);

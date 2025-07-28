@@ -6,15 +6,11 @@ import {
   Card, 
   Statistic, 
   Button, 
-  Input, 
   Select, 
   Space, 
   Typography, 
-  Divider,
   Progress,
   Tag,
-  Timeline,
-  Avatar,
   Carousel,
   Form,
   DatePicker,
@@ -31,10 +27,6 @@ import {
   DownloadOutlined,
   ApiOutlined,
   RightOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  LineChartOutlined,
-  FundOutlined,
   ExportOutlined,
   ImportOutlined,
   LeftOutlined,
@@ -50,20 +42,8 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const NewHome = () => {
-  // 原有的简单搜索状态（保留用于AI搜索）
-  const [searchType, setSearchType] = useState('customs_code');
-  const [searchValue, setSearchValue] = useState('');
-  
   // 新的搜索表单状态
   const [form] = Form.useForm();
-  const [searchFormData, setSearchFormData] = useState({
-    customs_code: '',
-    import_country: '',
-    export_country: '',
-    date_range: null,
-    importer: '',
-    exporter: ''
-  });
   
   // 模糊查询相关状态
   const [fuzzySearch, setFuzzySearch] = useState({
@@ -95,7 +75,7 @@ const NewHome = () => {
   const timelineRef = useRef(null);
   
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // 轮播图工具数据 - 重新设计为图片为主
   const carouselTools = [
@@ -190,8 +170,13 @@ const NewHome = () => {
     }
   ];
 
-  // 获取统计数据和搜索选项
+  // 获取统计数据和搜索选项 - 只在已登录时请求
   useEffect(() => {
+    // 只有在用户已登录时才请求数据
+    if (!isAuthenticated) {
+      return;
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -219,7 +204,7 @@ const NewHome = () => {
     };
 
     fetchData();
-  }, []);
+  }, [isAuthenticated]); // 依赖于登录状态
 
   // 时间线滚动功能
   const scrollTimeline = (direction) => {
@@ -467,22 +452,31 @@ const NewHome = () => {
                   // 已登录状态：显示完整搜索表单
                   <Card 
                     style={{ 
-                      background: 'rgba(255, 255, 255, 0.95)', 
-                      backdropFilter: 'blur(10px)',
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)', 
+                      backdropFilter: 'blur(20px)',
                       borderRadius: '16px',
-                      border: 'none',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                      padding: '20px 16px',
+                      maxWidth: '1200px',
+                      width: '100%',
+                      margin: '0 auto'
                     }}
                   >
+
                     <Form
                       form={form}
                       layout="vertical"
                       onFinish={handleAdvancedSearch}
                       style={{ margin: 0 }}
                     >
-                      <Row gutter={[16, 16]}>
+                      <Row gutter={[16, 12]}>
                         <Col xs={24} sm={12} md={8}>
-                          <Form.Item name="customs_code" label="海关编码" style={{ marginBottom: '16px' }}>
+                          <Form.Item 
+                            name="customs_code" 
+                            label={<span style={{ fontWeight: 500, color: '#333', fontSize: '13px' }}>海关编码</span>}
+                            style={{ marginBottom: '12px' }}
+                          >
                             <Select
                               showSearch
                               allowClear
@@ -491,7 +485,8 @@ const NewHome = () => {
                               filterOption={(input, option) =>
                                 (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                               }
-                              size="large"
+                              size="middle"
+                              className="custom-select"
                             >
                               {(customsCodes || []).map(code => (
                                 <Option key={code} value={code}>{code}</Option>
@@ -501,7 +496,11 @@ const NewHome = () => {
                         </Col>
 
                         <Col xs={24} sm={12} md={8}>
-                          <Form.Item name="import_country" label="进口国家" style={{ marginBottom: '16px' }}>
+                          <Form.Item 
+                            name="import_country" 
+                            label={<span style={{ fontWeight: 500, color: '#333', fontSize: '13px' }}>进口国家</span>}
+                            style={{ marginBottom: '12px' }}
+                          >
                             <Select
                               showSearch
                               allowClear
@@ -510,7 +509,8 @@ const NewHome = () => {
                               filterOption={(input, option) =>
                                 (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                               }
-                              size="large"
+                              size="middle"
+                              className="custom-select"
                             >
                               {(importCountries || []).map(country => (
                                 <Option key={country} value={country}>{country}</Option>
@@ -520,7 +520,11 @@ const NewHome = () => {
                         </Col>
 
                         <Col xs={24} sm={12} md={8}>
-                          <Form.Item name="export_country" label="出口国家" style={{ marginBottom: '16px' }}>
+                          <Form.Item 
+                            name="export_country" 
+                            label={<span style={{ fontWeight: 500, color: '#333', fontSize: '13px' }}>出口国家</span>}
+                            style={{ marginBottom: '12px' }}
+                          >
                             <Select
                               showSearch
                               allowClear
@@ -529,7 +533,8 @@ const NewHome = () => {
                               filterOption={(input, option) =>
                                 (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                               }
-                              size="large"
+                              size="middle"
+                              className="custom-select"
                             >
                               {(exportCountries || []).map(country => (
                                 <Option key={country} value={country}>{country}</Option>
@@ -539,19 +544,28 @@ const NewHome = () => {
                         </Col>
 
                         <Col xs={24} sm={12} md={8}>
-                          <Form.Item name="date_range" label="日期范围" style={{ marginBottom: '16px' }}>
+                          <Form.Item 
+                            name="date_range" 
+                            label={<span style={{ fontWeight: 500, color: '#333', fontSize: '13px' }}>日期范围</span>}
+                            style={{ marginBottom: '12px' }}
+                          >
                             <RangePicker
                               format="YYYY-MM-DD"
                               style={{ width: '100%' }}
                               placeholder={['开始日期', '结束日期']}
-                              size="large"
+                              size="middle"
+                              className="custom-date-picker"
                             />
                           </Form.Item>
                         </Col>
 
                         <Col xs={24} sm={12} md={8}>
-                          <Form.Item name="importer" label="进口商" style={{ marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                          <Form.Item 
+                            name="importer" 
+                            label={<span style={{ fontWeight: 500, color: '#333', fontSize: '13px' }}>进口商</span>}
+                            style={{ marginBottom: '12px' }}
+                          >
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                               <AutoComplete
                                 style={{ flex: 1 }}
                                 placeholder="输入进口商名称"
@@ -559,12 +573,21 @@ const NewHome = () => {
                                 options={(suggestions.importers || []).map(item => ({ value: item }))}
                                 filterOption={false}
                                 allowClear
-                                size="large"
+                                size="middle"
+                                className="custom-autocomplete"
                               />
                               <Button 
                                 type={fuzzySearch.importer ? "primary" : "default"}
                                 onClick={() => setFuzzySearch(prev => ({ ...prev, importer: !prev.importer }))}
-                                size="large"
+                                size="middle"
+                                style={{
+                                  borderRadius: '6px',
+                                  fontWeight: 500,
+                                  minWidth: '50px',
+                                  fontSize: '12px',
+                                  background: fuzzySearch.importer ? '#1890ff' : '#f5f5f5',
+                                  borderColor: fuzzySearch.importer ? '#1890ff' : '#d9d9d9'
+                                }}
                               >
                                 模糊
                               </Button>
@@ -573,8 +596,12 @@ const NewHome = () => {
                         </Col>
 
                         <Col xs={24} sm={12} md={8}>
-                          <Form.Item name="exporter" label="出口商" style={{ marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                          <Form.Item 
+                            name="exporter" 
+                            label={<span style={{ fontWeight: 500, color: '#333', fontSize: '13px' }}>出口商</span>}
+                            style={{ marginBottom: '12px' }}
+                          >
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                               <AutoComplete
                                 style={{ flex: 1 }}
                                 placeholder="输入出口商名称"
@@ -582,12 +609,21 @@ const NewHome = () => {
                                 options={(suggestions.exporters || []).map(item => ({ value: item }))}
                                 filterOption={false}
                                 allowClear
-                                size="large"
+                                size="middle"
+                                className="custom-autocomplete"
                               />
                               <Button 
                                 type={fuzzySearch.exporter ? "primary" : "default"}
                                 onClick={() => setFuzzySearch(prev => ({ ...prev, exporter: !prev.exporter }))}
-                                size="large"
+                                size="middle"
+                                style={{
+                                  borderRadius: '6px',
+                                  fontWeight: 500,
+                                  minWidth: '50px',
+                                  fontSize: '12px',
+                                  background: fuzzySearch.exporter ? '#1890ff' : '#f5f5f5',
+                                  borderColor: fuzzySearch.exporter ? '#1890ff' : '#d9d9d9'
+                                }}
                               >
                                 模糊
                               </Button>
@@ -595,25 +631,48 @@ const NewHome = () => {
                           </Form.Item>
                         </Col>
 
-                        <Col xs={24} style={{ textAlign: 'center', marginTop: '8px' }}>
+                        <Col xs={24} style={{ 
+                          textAlign: 'center', 
+                          marginTop: '8px',
+                          paddingTop: '16px',
+                          borderTop: '1px solid rgba(0, 0, 0, 0.06)'
+                        }}>
                           <Space size="middle">
                             <Button 
                               type="primary" 
                               htmlType="submit" 
                               icon={<SearchOutlined />} 
                               loading={loading} 
-                              size="large"
-                              style={{ minWidth: '120px' }}
+                              size="middle"
+                              style={{ 
+                                minWidth: '120px',
+                                height: '36px',
+                                borderRadius: '8px',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+                                border: 'none',
+                                boxShadow: '0 2px 8px rgba(24, 144, 255, 0.3)'
+                              }}
                             >
-                              查询
+                              开始查询
                             </Button>
                             <Button 
                               icon={<ReloadOutlined />} 
                               onClick={handleReset} 
-                              size="large"
-                              style={{ minWidth: '120px' }}
+                              size="middle"
+                              style={{ 
+                                minWidth: '120px',
+                                height: '36px',
+                                borderRadius: '8px',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                background: '#f8f9fa',
+                                borderColor: '#e9ecef',
+                                color: '#495057'
+                              }}
                             >
-                              重置
+                              重置表单
                             </Button>
                           </Space>
                         </Col>

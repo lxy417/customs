@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../utils/api';
 import { message } from 'antd';
 
@@ -9,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isManualLogout, setIsManualLogout] = useState(false); // 新增：标记是否为主动登出
+  const navigate = useNavigate();
 
   // 初始化：检查本地存储的token并验证
   useEffect(() => {
@@ -74,6 +76,12 @@ export const AuthProvider = ({ children }) => {
       // 标记为主动登出
       setIsManualLogout(true);
       message.success('已成功登出');
+      // 直接跳转到NewHome页面
+      navigate('/new-home', { replace: true });
+      // 延迟清除主动登出标记，确保跳转完成
+      setTimeout(() => {
+        setIsManualLogout(false);
+      }, 100);
     }
   };
 
