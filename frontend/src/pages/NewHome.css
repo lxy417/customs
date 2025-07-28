@@ -63,7 +63,7 @@
 
 /* 轮播图区域样式 - 优化后 */
 .carousel-section {
-  padding: 50px 0;
+  padding: 10px 0;
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -330,7 +330,7 @@
 
 /* 最新动态区域样式 - 优化时间线对齐 */
 .news-section {
-  padding: 50px 0;
+  padding: 10px 0;
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -362,7 +362,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  /* margin-bottom: 30px; */
 }
 
 .timeline-nav-button {
@@ -406,6 +406,7 @@
   transition: transform 0.5s ease;
   position: relative;
   align-items: flex-start; /* 确保项目顶部对齐 */
+  z-index: 3;
 }
 
 .news-timeline-container::before { /* **注意选择器：现在是作用于 news-timeline-container** */
