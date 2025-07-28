@@ -1,0 +1,695 @@
+[
+  {
+    "date": "2025-05-14",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美中关税调整至10%",
+    "content": "美国将对中国某些进口商品的IEEPA累积关税从125%降至10%；中国将对IEEPA关税的累积反制从125%降至10%。",
+    "featured": false
+  },
+  {
+    "date": "2025-05-03",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对汽车零部件征收232条款关税",
+    "content": "美国对汽车零部件征收25%的Section 232关税。",
+    "featured": false
+  },
+  {
+    "date": "2025-04-12",
+    "type": "retaliation",
+    "tag": {
+      "color": "red",
+      "text": "贸易反制"
+    },
+    "title": "中国对美国IEEPA关税实施反制",
+    "content": "中国对美国4月10日征收的IEEPA关税实施反制，达到近期美国关税增幅125%的水平。",
+    "featured": false
+  },
+  {
+    "date": "2025-04-11",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国取消部分IEEPA关税",
+    "content": "美国取消4月5日、9日和10日征收的部分IEEPA额外关税，豁免一些含有半导体的产品。",
+    "featured": false
+  },
+  {
+    "date": "2025-04-10",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "中美关税战升级至125%",
+    "content": "中国对美国4月5日和9日征收的IEEPA关税实施84%反制；美国取消对贸易顺差国家的关税，但对中国额外增加41%关税（总计125%），但有部分行业豁免。",
+    "featured": true
+  },
+  {
+    "date": "2025-04-09",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "美国对贸易顺差国征收高额关税",
+    "content": "美国根据IEEPA对几乎所有与美国有贸易顺差的国家征收1%至74%的关税，包括对中国征收74%关税，并对中国的反制公告额外征收50%关税。",
+    "featured": true
+  },
+  {
+    "date": "2025-04-05",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国根据IEEPA对几乎所有国家征收10%关税",
+    "content": "美国根据IEEPA对包括中国在内的几乎所有国家征收10%关税，但有一些行业豁免。",
+    "featured": false
+  },
+  {
+    "date": "2025-04-03",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对汽车征收232条款关税",
+    "content": "美国对汽车征收25%的Section 232关税。",
+    "featured": false
+  },
+  {
+    "date": "2025-03-12",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对钢铁、铝及衍生产品征收232条款关税",
+    "content": "美国对钢铁、铝及衍生产品征收Section 232关税。",
+    "featured": false
+  },
+  {
+    "date": "2025-03-10",
+    "type": "retaliation",
+    "tag": {
+      "color": "red",
+      "text": "贸易反制"
+    },
+    "title": "中国对美国3月4日IEEPA关税实施反制",
+    "content": "中国对美国3月4日征收的IEEPA关税实施反制措施。",
+    "featured": false
+  },
+  {
+    "date": "2025-03-04",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国扩大对中国征收IEEPA关税",
+    "content": "美国根据IEEPA对中国所有进口商品征收10%关税；对不符合USMCA的加拿大和墨西哥进口商品征收关税。",
+    "featured": false
+  },
+  {
+    "date": "2025-02-10",
+    "type": "retaliation",
+    "tag": {
+      "color": "red",
+      "text": "贸易反制"
+    },
+    "title": "中国对美国2月4日IEEPA关税实施反制",
+    "content": "中国对美国2月4日征收的IEEPA关税实施反制措施。",
+    "featured": false
+  },
+  {
+    "date": "2025-02-07",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国201条款关税第八年减税",
+    "content": "美国对太阳能电池板的Section 201关税在政策第八年实施减税。",
+    "featured": false
+  },
+  {
+    "date": "2025-02-04",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "美国根据IEEPA对中国征收10%关税",
+    "content": "美国根据国际紧急经济权力法案(IEEPA)对中国所有进口商品征收10%关税。",
+    "featured": true
+  },
+  {
+    "date": "2025-01-20",
+    "type": "system",
+    "tag": {
+      "color": "purple",
+      "text": "政府更迭"
+    },
+    "title": "特朗普政府开始，拜登政府结束",
+    "content": "特朗普政府正式开始执政，拜登政府结束，美国贸易政策可能面临重大调整。",
+    "featured": true
+  },
+  {
+    "date": "2025-01-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "中美2025年关税调整",
+    "content": "中国调整2025年最惠国关税税率；美国调整对中国选定产品的Section 301关税，包括钨、晶圆和多晶硅。",
+    "featured": false
+  },
+  {
+    "date": "2024-09-27",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国调整对中国产品的301条款关税",
+    "content": "美国调整对中国选定产品的Section 301关税，包括电动汽车。",
+    "featured": false
+  },
+  {
+    "date": "2024-06-26",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国201条款关税第七年减税",
+    "content": "美国对太阳能电池板的Section 201关税在政策第七年实施减税。",
+    "featured": false
+  },
+  {
+    "date": "2024-01-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "中国调整2024年最惠国关税税率",
+    "content": "中国调整2024年最惠国关税税率。",
+    "featured": false
+  },
+  {
+    "date": "2023-12-31",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "中国煤炭最惠国关税恢复较高约束税率",
+    "content": "中国对煤炭的最惠国关税恢复到较高的约束税率。",
+    "featured": false
+  },
+  {
+    "date": "2023-07-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减ITA产品最惠国关税",
+    "content": "中国对信息技术协定产品实施最惠国关税削减。",
+    "featured": false
+  },
+  {
+    "date": "2023-02-07",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国201条款关税第六年减税，洗衣机关税到期",
+    "content": "美国对太阳能电池板的Section 201关税在政策第六年实施减税；对洗衣机的Section 201关税到期。",
+    "featured": false
+  },
+  {
+    "date": "2023-01-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "中国调整选定产品最惠国关税",
+    "content": "中国对选定产品实施最惠国关税削减，冷冻鸡肉有效最惠国关税因从特殊税率转换为从价税率而增加。",
+    "featured": false
+  },
+  {
+    "date": "2022-07-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减ITA产品最惠国关税",
+    "content": "中国对信息技术协定产品实施最惠国关税削减。",
+    "featured": false
+  },
+  {
+    "date": "2022-06-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对英国钢铝关税转换为关税配额",
+    "content": "美国对英国钢铁和铝进口的Section 232关税转换为关税配额。",
+    "featured": false
+  },
+  {
+    "date": "2022-05-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国煤炭最惠国关税削减至零",
+    "content": "中国对煤炭实施最惠国关税削减至零。",
+    "featured": false
+  },
+  {
+    "date": "2022-04-11",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对日本钢铁关税转换为关税配额",
+    "content": "美国对日本钢铁进口的Section 232关税转换为关税配额。",
+    "featured": false
+  },
+  {
+    "date": "2022-02-07",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国201条款关税第五年减税",
+    "content": "美国对太阳能电池板和洗衣机的Section 201关税在政策第五年实施减税（太阳能电池板获得延期）。",
+    "featured": false
+  },
+  {
+    "date": "2022-01-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "中美欧关税政策调整",
+    "content": "中国调整2022年最惠国关税税率；美国对欧盟钢铁和铝进口的Section 232关税转换为关税配额。",
+    "featured": false
+  },
+  {
+    "date": "2021-07-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减ITA产品最惠国关税",
+    "content": "中国对信息技术协定产品实施最惠国关税削减。",
+    "featured": false
+  },
+  {
+    "date": "2021-05-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减部分钢铁产品最惠国关税",
+    "content": "中国对部分钢铁产品实施最惠国关税削减。",
+    "featured": false
+  },
+  {
+    "date": "2021-03-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国暂停对欧盟和英国空客争端相关关税",
+    "content": "美国暂停对欧盟（3月11日）和英国（3月4日）选定进口商品的Section 301关税，涉及空客争端。",
+    "featured": false
+  },
+  {
+    "date": "2021-02-07",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国201条款关税第四年减税",
+    "content": "美国对太阳能电池板和洗衣机的Section 201关税在政策第四年实施减税（洗衣机获得延期）。",
+    "featured": false
+  },
+  {
+    "date": "2021-01-20",
+    "type": "system",
+    "tag": {
+      "color": "purple",
+      "text": "政府更迭"
+    },
+    "title": "拜登政府开始，特朗普政府结束",
+    "content": "拜登政府正式开始执政，特朗普政府结束，美国贸易政策可能面临调整。",
+    "featured": true
+  },
+  {
+    "date": "2021-01-14",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国调整欧盟空客争端相关关税",
+    "content": "美国调整对欧盟选定进口商品的Section 301关税，涉及空客争端。",
+    "featured": false
+  },
+  {
+    "date": "2021-01-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "中美日贸易政策调整",
+    "content": "中国调整2021年最惠国关税税率，美国根据美日贸易协定降低对日本进口商品的关税。",
+    "featured": false
+  },
+  {
+    "date": "2020-09-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国取消对加拿大铝产品关税",
+    "content": "美国取消重新征收的对加拿大某些铝产品10%的Section 232关税。",
+    "featured": false
+  },
+  {
+    "date": "2020-08-16",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国重新对加拿大铝产品征收关税",
+    "content": "美国重新对加拿大某些铝产品征收10%的Section 232关税。",
+    "featured": false
+  },
+  {
+    "date": "2020-07-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减ITA产品最惠国关税",
+    "content": "中国对信息技术协定产品实施最惠国关税削减。",
+    "featured": false
+  },
+  {
+    "date": "2020-03-05",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国调整欧盟空客争端相关关税",
+    "content": "美国调整对欧盟选定进口商品的Section 301关税，涉及空客争端。",
+    "featured": false
+  },
+  {
+    "date": "2020-02-14",
+    "type": "trade_war",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中美第一阶段贸易协定关税削减",
+    "content": "美国将2019年9月1日征收的15%关税（清单4A）削减至7.5%，中国将2019年9月1日征收的反制关税减半。",
+    "featured": true
+  },
+  {
+    "date": "2020-02-08",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国232条款关税扩展至铝钢制品",
+    "content": "美国将Section 232进口关税扩展至使用铝和钢的产品。",
+    "featured": false
+  },
+  {
+    "date": "2020-02-07",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国201条款关税第三年减税",
+    "content": "美国对太阳能电池板和洗衣机的Section 201关税在政策第三年实施减税。",
+    "featured": false
+  },
+  {
+    "date": "2020-01-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "中美贸易协定生效，关税调整",
+    "content": "中国调整2020年最惠国关税税率，美国根据美日贸易协定降低对日本进口商品的关税。",
+    "featured": true
+  },
+  {
+    "date": "2019-10-18",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对欧盟征收空客争端相关关税",
+    "content": "美国在WTO授权后，对欧盟选定进口商品征收Section 301关税，涉及空客争端。",
+    "featured": false
+  },
+  {
+    "date": "2019-09-01",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "美国301条款第四轮关税生效",
+    "content": "美国对3000亿美元商品的子集征收15%关税（清单4A），中国对部分美国产品实施反制（750亿美元的子集）。",
+    "featured": false
+  },
+  {
+    "date": "2019-07-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减ITA产品最惠国关税",
+    "content": "中国对信息技术协定产品实施最惠国关税削减。",
+    "featured": false
+  },
+  {
+    "date": "2019-06-01",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "美国301条款关税上调，中国实施反制",
+    "content": "美国将清单3的关税从10%上调至25%（6月15日生效），中国对部分美国产品实施反制（600亿美元的子集，6月1日生效）。",
+    "featured": false
+  },
+  {
+    "date": "2019-05-21",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国降低土耳其钢铁关税",
+    "content": "美国将土耳其钢铁进口的Section 232关税从50%降至25%。",
+    "featured": false
+  },
+  {
+    "date": "2019-05-20",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国豁免加拿大和墨西哥钢铝关税",
+    "content": "美国豁免加拿大和墨西哥的Section 232钢铁和铝关税，作为交换，两国同意自愿出口限制。",
+    "featured": false
+  },
+  {
+    "date": "2019-02-07",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国201条款关税第二年减税",
+    "content": "美国对太阳能电池板和洗衣机的Section 201关税在政策第二年实施减税。",
+    "featured": false
+  },
+  {
+    "date": "2019-01-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国暂停对美汽车及零部件反制关税",
+    "content": "中国暂停对美国汽车及零部件的反制关税（Section 301），并降低2019年最惠国关税税率。",
+    "featured": false
+  },
+  {
+    "date": "2018-11-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减工业品最惠国关税",
+    "content": "中国对工业品实施最惠国关税削减政策。",
+    "featured": false
+  },
+  {
+    "date": "2018-09-24",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "美国301条款第三轮关税生效",
+    "content": "美国对价值2000亿美元商品征收10%的Section 301关税（清单3），中国实施600亿美元反制措施。",
+    "featured": true
+  },
+  {
+    "date": "2018-08-23",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "美国301条款第二轮关税生效",
+    "content": "美国对价值160亿美元商品征收25%的Section 301关税（清单2），中国实施160亿美元反制措施。",
+    "featured": false
+  },
+  {
+    "date": "2018-08-13",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国将土耳其钢铁关税从25%提高到50%",
+    "content": "美国将对土耳其钢铁进口的Section 232关税从25%提高到50%。",
+    "featured": false
+  },
+  {
+    "date": "2018-07-06",
+    "type": "trade_war",
+    "tag": {
+      "color": "orange",
+      "text": "贸易战"
+    },
+    "title": "美国301条款关税生效，中国实施反制",
+    "content": "美国对价值340亿美元商品征收25%的Section 301关税（清单1），中国实施340亿美元反制措施。",
+    "featured": true
+  },
+  {
+    "date": "2018-07-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减消费品、汽车和ITA产品最惠国关税",
+    "content": "中国对消费品、汽车和信息技术协定产品实施最惠国关税削减。",
+    "featured": false
+  },
+  {
+    "date": "2018-06-01",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国结束对欧盟、加拿大和墨西哥的钢铝关税豁免",
+    "content": "美国结束对欧盟、加拿大和墨西哥的Section 232钢铁和铝关税豁免（阿根廷、巴西和韩国此前已同意配额）。",
+    "featured": false
+  },
+  {
+    "date": "2018-05-01",
+    "type": "tariff_cut",
+    "tag": {
+      "color": "green",
+      "text": "关税削减"
+    },
+    "title": "中国削减药品最惠国关税",
+    "content": "中国对药品实施最惠国关税削减政策，降低进口药品成本。",
+    "featured": false
+  },
+  {
+    "date": "2018-04-02",
+    "type": "retaliation",
+    "tag": {
+      "color": "red",
+      "text": "贸易反制"
+    },
+    "title": "中国对美国232条款关税进行反制",
+    "content": "中国对美国Section 232关税实施反制措施，标志着贸易摩擦的升级。",
+    "featured": false
+  },
+  {
+    "date": "2018-03-23",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对钢铁和铝征收232条款关税",
+    "content": "美国对钢铁和铝征收Section 232关税，暂时豁免阿根廷、澳大利亚、巴西、欧盟、加拿大、墨西哥和韩国。",
+    "featured": false
+  },
+  {
+    "date": "2018-02-07",
+    "type": "policy",
+    "tag": {
+      "color": "blue",
+      "text": "政策变化"
+    },
+    "title": "美国对太阳能电池板和洗衣机征收201条款关税",
+    "content": "美国对太阳能电池板和洗衣机征收Section 201关税，这是贸易保护措施的重要举措。",
+    "featured": true
+  }
+]

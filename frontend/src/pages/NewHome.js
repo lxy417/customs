@@ -72,6 +72,7 @@ const NewHome = () => {
   const [timelineIndex, setTimelineIndex] = useState(0);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [timelineNews, setTimelineNews] = useState([]);
   const timelineRef = useRef(null);
   
   const navigate = useNavigate();
@@ -93,82 +94,37 @@ const NewHome = () => {
       url: 'https://iie-customs.wandrop.com/#/customs',
       buttonText: '查看可视化'
     },
-    {
-      title: '数据分析工具',
-      description: '深度分析全球贸易数据，发现商业机会和市场趋势',
-      image: '/images/海关数据查询平台.png', // 复用图片
-      url: 'https://comtradeplus.un.org/',
-      buttonText: '立即使用'
-    }
+    // {
+    //   title: '数据分析工具',
+    //   description: '深度分析全球贸易数据，发现商业机会和市场趋势',
+    //   image: '/images/海关数据查询平台.png', // 复用图片
+    //   url: 'https://comtradeplus.un.org/',
+    //   buttonText: '立即使用'
+    // }
   ];
 
-  // 时间线新闻数据 - 扩展更多历史事件
-  const timelineNews = [
-    {
-      date: '2024-01-15',
-      type: 'feature',
-      tag: { color: 'blue', text: '功能更新' },
-      title: '新增AI智能搜索功能',
-      content: '平台新增AI智能搜索功能，支持自然语言查询，让数据检索更加便捷高效。',
-      featured: true
-    },
-    {
-      date: '2024-01-10',
-      type: 'data',
-      tag: { color: 'green', text: '数据更新' },
-      title: '2023年度贸易数据发布',
-      content: '2023年全球贸易统计数据已完成整理并正式发布，涵盖全球主要经济体贸易数据。',
-      featured: false
-    },
-    {
-      date: '2024-01-05',
-      type: 'system',
-      tag: { color: 'purple', text: '系统公告' },
-      title: '系统维护通知',
-      content: '为提升用户体验，系统将于本周末进行例行维护升级，预计维护时间2小时。',
-      featured: false
-    },
-    {
-      date: '2023-12-20',
-      type: 'feature',
-      tag: { color: 'blue', text: '功能更新' },
-      title: '新增数据可视化图表',
-      content: '平台新增多种数据可视化图表类型，包括热力图、桑基图等，提升数据分析体验。',
-      featured: false
-    },
-    {
-      date: '2023-12-15',
-      type: 'data',
-      tag: { color: 'green', text: '数据更新' },
-      title: '新增东南亚贸易数据',
-      content: '平台新增东南亚地区详细贸易数据，覆盖ASEAN十国的进出口统计信息。',
-      featured: false
-    },
-    {
-      date: '2023-12-01',
-      type: 'feature',
-      tag: { color: 'orange', text: '性能优化' },
-      title: '查询性能大幅提升',
-      content: '通过数据库优化和缓存机制改进，数据查询速度提升300%，用户体验显著改善。',
-      featured: true
-    },
-    {
-      date: '2023-11-20',
-      type: 'system',
-      tag: { color: 'red', text: '重要公告' },
-      title: '用户权限系统升级',
-      content: '用户权限管理系统全面升级，新增角色管理和细粒度权限控制功能。',
-      featured: false
-    },
-    {
-      date: '2023-11-10',
-      type: 'data',
-      tag: { color: 'green', text: '数据更新' },
-      title: '历史数据回溯至2000年',
-      content: '平台历史数据回溯范围扩展至2000年，为长期趋势分析提供更丰富的数据支持。',
-      featured: false
-    }
-  ];
+  // 加载时间线数据
+  useEffect(() => {
+    const loadTimelineData = async () => {
+      try {
+        const response = await fetch('/timeline_data.json');
+        if (response.ok) {
+          const data = await response.json();
+          setTimelineNews(data);
+        } else {
+          console.error('Failed to load timeline data');
+          // 如果加载失败，使用默认数据
+          setTimelineNews([]);
+        }
+      } catch (error) {
+        console.error('Error loading timeline data:', error);
+        // 如果加载失败，使用默认数据
+        setTimelineNews([]);
+      }
+    };
+
+    loadTimelineData();
+  }, []);
 
   // 获取统计数据和搜索选项 - 只在已登录时请求
   useEffect(() => {
@@ -684,55 +640,10 @@ const NewHome = () => {
             </div>
           </div>
 
-          {/* 工具轮播图区域 - 重新设计 */}
-          <div className="carousel-section">
-            <div className="carousel-container">
-              <div className="carousel-header">
-                <Title level={2}>专业工具</Title>
-                <Paragraph className="carousel-description">
-                  探索我们的专业贸易分析工具，助力您的商业决策
-                </Paragraph>
-              </div>   
-              
-              <Carousel 
-                autoplay 
-                arrows
-                className="custom-carousel"
-              >
-                {carouselTools.map((tool, index) => (
-                  <div key={index}>
-                    <div className="carousel-slide">
-                      <img 
-                        src={tool.image} 
-                        alt={tool.title} 
-                        className="carousel-image"
-                      />
-                      <div className="carousel-content">
-                        <Title level={2} className="carousel-title">
-                          {tool.title}
-                        </Title>
-                        <Paragraph className="carousel-description-text">
-                          {tool.description}
-                        </Paragraph>
-                        <Button 
-                          type="primary" 
-                          size="large"
-                          icon={<ExportOutlined />}
-                          onClick={() => handleToolClick(tool)}
-                          className="carousel-button"
-                        >
-                          {tool.buttonText}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </Carousel>
-            </div>
-          </div>
+
 
           {/* 统计数据区域 */}
-          <div className="stats-section">
+          {/* <div className="stats-section">
             <div className="stats-container">
               <Row gutter={[32, 32]}>
                 <Col xs={24} sm={12} md={6}>
@@ -777,10 +688,10 @@ const NewHome = () => {
                 </Col>
               </Row>
             </div>
-          </div>
+          </div> */}
 
           {/* 功能特性区域 */}
-          <div className="features-section">
+          {/* <div className="features-section">
             <div className="features-container">
               <div className="features-header">
                 <Title level={2}>平台功能</Title>
@@ -815,10 +726,10 @@ const NewHome = () => {
                 ))}
               </Row>
             </div>
-          </div>
+          </div> */}
 
           {/* 数据可用性趋势 */}
-          <div className="availability-section">
+          {/* <div className="availability-section">
             <div className="availability-container">
               <Row gutter={[48, 48]} align="middle">
                 <Col xs={24} lg={12}>
@@ -861,7 +772,7 @@ const NewHome = () => {
                 </Col>
               </Row>
             </div>
-          </div>
+          </div> */}
 
           {/* 最新动态 - 横向时间线 */}
           <div className="news-section">
@@ -869,7 +780,7 @@ const NewHome = () => {
               <div className="news-header">
                 <Title level={2}>中美贸易战信息</Title>
                 <Paragraph className="news-description">
-                  了解平台最新功能更新和重要公告
+                  了解中美最新贸易动态
                 </Paragraph>
               </div>
               
@@ -900,9 +811,9 @@ const NewHome = () => {
                             <Paragraph className="news-content">
                               {news.content}
                             </Paragraph>
-                            <Button type="link" icon={<RightOutlined />}>
+                            {/* <Button type="link" icon={<RightOutlined />}>
                               查看详情
-                            </Button>
+                            </Button> */}
                           </Card>
                         </div>
                       ))}
@@ -921,8 +832,55 @@ const NewHome = () => {
             </div>
           </div>
 
+                    {/* 工具轮播图区域 - 重新设计 */}
+          <div className="carousel-section">
+            <div className="carousel-container">
+              <div className="carousel-header">
+                <Title level={2}>专业工具</Title>
+                <Paragraph className="carousel-description">
+                  探索我们的专业数据分析工具
+                </Paragraph>
+              </div>   
+              
+              <Carousel 
+                autoplay 
+                arrows
+                className="custom-carousel"
+              >
+                {carouselTools.map((tool, index) => (
+                  <div key={index}>
+                    <div className="carousel-slide">
+                      <img 
+                        src={tool.image} 
+                        alt={tool.title} 
+                        className="carousel-image"
+                      />
+                      <div className="carousel-content">
+                        <Title level={2} className="carousel-title">
+                          {tool.title}
+                        </Title>
+                        <Paragraph className="carousel-description-text">
+                          {tool.description}
+                        </Paragraph>
+                        <Button 
+                          type="primary" 
+                          size="large"
+                          icon={<ExportOutlined />}
+                          onClick={() => handleToolClick(tool)}
+                          className="carousel-button"
+                        >
+                          {tool.buttonText}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </Carousel>
+            </div>
+          </div>
+
           {/* 快速访问 */}
-          <div className="quick-access-section">
+          {/* <div className="quick-access-section">
             <div className="quick-access-container">
               <div className="quick-access-header">
                 <Title level={2}>快速访问</Title>
@@ -1009,7 +967,7 @@ const NewHome = () => {
                 </Col>
               </Row>
             </div>
-          </div>
+          </div> */}
         </div>
       </Layout>
     </div>
