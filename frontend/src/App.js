@@ -21,11 +21,15 @@ function App() {
   const { isAuthenticated } = useAuth();
   const routeLocation = useLocation();
   const isLoginPage = routeLocation.pathname === '/login';
+  const isNewHomePage = routeLocation.pathname === '/new-home';
+  
+  // 显示Header的条件：已登录 或者 在NewHome页面（未登录也显示）
+  const shouldShowHeader = isAuthenticated || isNewHomePage;
 
   return (
     <Layout className="site-layout" style={{ minHeight: '100vh' }}>
-      {isAuthenticated && <Header />}
-      <Content style={{height: "100vh"}} className={`content-container ${isAuthenticated && !isLoginPage ? 'content-authenticated' : 'content-unauthenticated'}`}>
+      {shouldShowHeader && <Header />}
+      <Content style={{height: "100vh"}} className={`content-container ${shouldShowHeader && !isLoginPage ? 'content-authenticated' : 'content-unauthenticated'}`}>
         <Routes> 
           {/* 登录页面 - 如果已登录则重定向到首页 */}
           <Route 
@@ -33,15 +37,10 @@ function App() {
             element={isAuthenticated ? <Navigate to="/new-home" replace /> : <Login />} 
           />
           
-          {/* 新首页 - 需要登录但无特殊权限要求 */}
+          {/* 新首页 - 允许未登录用户访问 */}
           <Route 
             path="/new-home" 
-            element={
-              <PrivateRoute 
-                element={<NewHome />} 
-                path="/new-home"
-              />
-            } 
+            element={<NewHome />} 
           />
           
           {/* 原首页 - 保留作为备用 */}

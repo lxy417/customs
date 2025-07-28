@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Layout, 
   Row, 
@@ -15,7 +15,11 @@ import {
   Tag,
   Timeline,
   Avatar,
-  Carousel
+  Carousel,
+  Form,
+  DatePicker,
+  AutoComplete,
+  message
 } from 'antd';
 import { 
   SearchOutlined, 
@@ -33,20 +37,46 @@ import {
   FundOutlined,
   ExportOutlined,
   ImportOutlined,
-  LeftOutlined
+  LeftOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { usePermissions, PERMISSIONS } from '../utils/permissions';
 import { dataAPI } from '../utils/api';
 import './NewHome.css';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 const NewHome = () => {
+  // 原有的简单搜索状态（保留用于AI搜索）
   const [searchType, setSearchType] = useState('customs_code');
   const [searchValue, setSearchValue] = useState('');
+  
+  // 新的搜索表单状态
+  const [form] = Form.useForm();
+  const [searchFormData, setSearchFormData] = useState({
+    customs_code: '',
+    import_country: '',
+    export_country: '',
+    date_range: null,
+    importer: '',
+    exporter: ''
+  });
+  
+  // 模糊查询相关状态
+  const [fuzzySearch, setFuzzySearch] = useState({
+    importer: true,
+    exporter: true
+  });
+  
+  // 建议相关状态
+  const [suggestions, setSuggestions] = useState({
+    importers: [],
+    exporters: []
+  });
+  
   const [customsCodes, setCustomsCodes] = useState([]);
   const [importCountries, setImportCountries] = useState([]);
   const [exportCountries, setExportCountries] = useState([]);
@@ -65,8 +95,7 @@ const NewHome = () => {
   const timelineRef = useRef(null);
   
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { hasPermission } = usePermissions(user);
+  const { user, isAuthenticated } = useAuth();
 
   // 轮播图工具数据 - 重新设计为图片为主
   const carouselTools = [
@@ -214,50 +243,105 @@ const NewHome = () => {
     updateTimelineButtons(newIndex);
   };
 
-  const updateTimelineButtons = (index) => {
+  const updateTimelineButtons = useCallback((index) => {
     const maxIndex = Math.max(0, timelineNews.length - 3);
     setCanScrollLeft(index > 0);
     setCanScrollRight(index < maxIndex);
-  };
+  }, [timelineNews.length]);
 
   // 组件挂载后初始化按钮状态
   useEffect(() => {
     updateTimelineButtons(0);
-  }, []);
+  }, [updateTimelineButtons]);
 
-  const handleSearch = async () => {
-    if (!searchValue.trim()) return;
-
-    if (searchType === 'ai') {
-      if (!hasPermission(PERMISSIONS.AI_SEARCH)) {
-        alert('您没有AI搜索权限');
-        return;
-      }
-      
+  // 处理进口商搜索建议
+  const handleImporterSearch = async (value) => {
+    if (value && value.length > 1) {
       try {
-        const response = await dataAPI.aiSearch(searchValue, exportCountries, importCountries);
-        navigate('/data-query', { state: response });
+        const response = await dataAPI.getImportersSuggestions(value);
+        setSuggestions(prev => ({ ...prev, importers: response || [] }));
       } catch (error) {
-        console.error('AI搜索错误:', error);
-        alert('AI搜索失败，请重试');
+        console.error('获取进口商建议失败:', error);
+        setSuggestions(prev => ({ ...prev, importers: [] }));
       }
     } else {
-      const queryParams = {};
-      switch(searchType) {
-        case 'customs_code':
-          queryParams.customs_code = searchValue;
-          break;
-        case 'export_country':
-          queryParams.export_country = searchValue;
-          break;
-        case 'import_country':
-          queryParams.import_country = searchValue;
-          break;
-        default:
-          break;
-      }
-      navigate('/data-query', { state: queryParams });
+      setSuggestions(prev => ({ ...prev, importers: [] }));
     }
+  };
+
+  // 处理出口商搜索建议
+  const handleExporterSearch = async (value) => {
+    if (value && value.length > 1) {
+      try {
+        const response = await dataAPI.getExportersSuggestions(value);
+        setSuggestions(prev => ({ ...prev, exporters: response || [] }));
+      } catch (error) {
+        console.error('获取出口商建议失败:', error);
+        setSuggestions(prev => ({ ...prev, exporters: [] }));
+      }
+    } else {
+      setSuggestions(prev => ({ ...prev, exporters: [] }));
+    }
+  };
+
+  // 处理高级搜索表单提交
+  const handleAdvancedSearch = async (values) => {
+    // 检查是否已登录，未登录则跳转到登录页面
+    if (!isAuthenticated) {
+      navigate('/login', { 
+        state: { 
+          from: { pathname: '/data-query' },
+          message: '请先登录以使用数据查询功能'
+        }
+      });
+      return;
+    }
+
+    try {
+      // 格式化查询参数
+      const params = {
+        ...values,
+        // 日期范围格式化
+        start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
+        end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
+        // 添加模糊查询参数
+        fuzzy_importer: fuzzySearch.importer,
+        fuzzy_exporter: fuzzySearch.exporter,
+        // 移除date_range属性
+        date_range: undefined
+      };
+
+      // 跳转到数据查询页面并传递参数
+      navigate('/data-query', { state: params });
+    } catch (error) {
+      console.error('搜索参数处理失败:', error);
+      message.error('搜索参数处理失败，请重试');
+    }
+  };
+
+  // 处理表单重置
+  const handleReset = () => {
+    form.resetFields();
+    // 重置模糊搜索状态为默认开启
+    setFuzzySearch({
+      importer: true,
+      exporter: true
+    });
+    // 清空建议
+    setSuggestions({
+      importers: [],
+      exporters: []
+    });
+  };
+
+  // 处理未登录状态下的搜索按钮点击
+  const handleLoginPrompt = () => {
+    navigate('/login', { 
+      state: { 
+        from: { pathname: '/data-query' },
+        message: '请先登录以使用数据查询功能'
+      }
+    });
   };
 
   // 处理轮播图工具点击
@@ -266,9 +350,33 @@ const NewHome = () => {
       // 外部链接，新窗口打开
       window.open(tool.url, '_blank');
     } else {
-      // 内部路由，使用navigate
+      // 内部路由，检查是否需要登录
+      if (!isAuthenticated && tool.url !== '/new-home') {
+        navigate('/login', { 
+          state: { 
+            from: { pathname: tool.url },
+            message: '请先登录以使用此功能'
+          }
+        });
+        return;
+      }
       navigate(tool.url);
     }
+  };
+
+  // 处理功能特性卡片点击
+  const handleFeatureClick = (feature) => {
+    // 检查是否需要登录
+    if (!isAuthenticated && feature.link !== '/new-home') {
+      navigate('/login', { 
+        state: { 
+          from: { pathname: feature.link },
+          message: '请先登录以使用此功能'
+        }
+      });
+      return;
+    }
+    navigate(feature.link);
   };
 
   const features = [
@@ -333,64 +441,186 @@ const NewHome = () => {
               
               {/* 搜索区域 */}
               <div className="search-container">
-                <Space.Compact size="large" style={{ width: '100%' }}>
-                  <Select
-                    value={searchType}
-                    onChange={setSearchType}
-                    style={{ width: 140 }}
-                    size="large"
-                  >
-                    <Option value="customs_code">海关编码</Option>
-                    <Option value="export_country">出口国家</Option>
-                    <Option value="import_country">进口国家</Option>
-                    {hasPermission(PERMISSIONS.AI_SEARCH) && (
-                      <Option value="ai">AI搜索</Option>
-                    )}
-                  </Select>
-                  
-                  {searchType === 'ai' ? (
-                    <Input
-                      placeholder="请输入搜索内容..."
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                      onPressEnter={handleSearch}
-                      style={{ flex: 1 }}
-                      size="large"
-                    />
-                  ) : (
-                    <Select
-                      showSearch
-                      value={searchValue}
-                      onChange={setSearchValue}
-                      placeholder="请选择或输入搜索内容..."
-                      style={{ flex: 1 }}
-                      filterOption={(input, option) =>
-                        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-                      }
-                      size="large"
-                      loading={loading}
+                {!isAuthenticated ? (
+                  // 未登录状态：显示"开始搜索"按钮
+                  <div style={{ textAlign: 'center' }}>
+                    <Button 
+                      type="primary" 
+                      size="large" 
+                      icon={<SearchOutlined />}
+                      onClick={handleLoginPrompt}
+                      className="search-button"
+                      style={{ 
+                        fontSize: '18px', 
+                        height: '60px', 
+                        padding: '0 40px',
+                        borderRadius: '30px'
+                      }}
                     >
-                      {searchType === 'customs_code'
-                        ? customsCodes.map(code => <Option key={code} value={code}>{code}</Option>)
-                        : searchType === 'export_country'
-                          ? exportCountries.map(country => <Option key={country} value={country}>{country}</Option>)
-                          : searchType === 'import_country'
-                            ? importCountries.map(country => <Option key={country} value={country}>{country}</Option>)
-                            : null
-                      }
-                    </Select>
-                  )}
-                  
-                  <Button 
-                    type="primary" 
-                    size="large" 
-                    icon={<SearchOutlined />}
-                    onClick={handleSearch}
-                    className="search-button"
+                      开始搜索
+                    </Button>
+                    <div style={{ marginTop: '16px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                      登录后可使用完整的数据查询功能
+                    </div>
+                  </div>
+                ) : (
+                  // 已登录状态：显示完整搜索表单
+                  <Card 
+                    style={{ 
+                      background: 'rgba(255, 255, 255, 0.95)', 
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: '16px',
+                      border: 'none',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                    }}
                   >
-                    搜索
-                  </Button>
-                </Space.Compact>
+                    <Form
+                      form={form}
+                      layout="vertical"
+                      onFinish={handleAdvancedSearch}
+                      style={{ margin: 0 }}
+                    >
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12} md={8}>
+                          <Form.Item name="customs_code" label="海关编码" style={{ marginBottom: '16px' }}>
+                            <Select
+                              showSearch
+                              allowClear
+                              placeholder="选择或输入海关编码"
+                              style={{ width: '100%' }}
+                              filterOption={(input, option) =>
+                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                              }
+                              size="large"
+                            >
+                              {(customsCodes || []).map(code => (
+                                <Option key={code} value={code}>{code}</Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} sm={12} md={8}>
+                          <Form.Item name="import_country" label="进口国家" style={{ marginBottom: '16px' }}>
+                            <Select
+                              showSearch
+                              allowClear
+                              placeholder="选择进口国家"
+                              style={{ width: '100%' }}
+                              filterOption={(input, option) =>
+                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                              }
+                              size="large"
+                            >
+                              {(importCountries || []).map(country => (
+                                <Option key={country} value={country}>{country}</Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} sm={12} md={8}>
+                          <Form.Item name="export_country" label="出口国家" style={{ marginBottom: '16px' }}>
+                            <Select
+                              showSearch
+                              allowClear
+                              placeholder="选择出口国家"
+                              style={{ width: '100%' }}
+                              filterOption={(input, option) =>
+                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                              }
+                              size="large"
+                            >
+                              {(exportCountries || []).map(country => (
+                                <Option key={country} value={country}>{country}</Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} sm={12} md={8}>
+                          <Form.Item name="date_range" label="日期范围" style={{ marginBottom: '16px' }}>
+                            <RangePicker
+                              format="YYYY-MM-DD"
+                              style={{ width: '100%' }}
+                              placeholder={['开始日期', '结束日期']}
+                              size="large"
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} sm={12} md={8}>
+                          <Form.Item name="importer" label="进口商" style={{ marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <AutoComplete
+                                style={{ flex: 1 }}
+                                placeholder="输入进口商名称"
+                                onSearch={handleImporterSearch}
+                                options={(suggestions.importers || []).map(item => ({ value: item }))}
+                                filterOption={false}
+                                allowClear
+                                size="large"
+                              />
+                              <Button 
+                                type={fuzzySearch.importer ? "primary" : "default"}
+                                onClick={() => setFuzzySearch(prev => ({ ...prev, importer: !prev.importer }))}
+                                size="large"
+                              >
+                                模糊
+                              </Button>
+                            </div>
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} sm={12} md={8}>
+                          <Form.Item name="exporter" label="出口商" style={{ marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <AutoComplete
+                                style={{ flex: 1 }}
+                                placeholder="输入出口商名称"
+                                onSearch={handleExporterSearch}
+                                options={(suggestions.exporters || []).map(item => ({ value: item }))}
+                                filterOption={false}
+                                allowClear
+                                size="large"
+                              />
+                              <Button 
+                                type={fuzzySearch.exporter ? "primary" : "default"}
+                                onClick={() => setFuzzySearch(prev => ({ ...prev, exporter: !prev.exporter }))}
+                                size="large"
+                              >
+                                模糊
+                              </Button>
+                            </div>
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} style={{ textAlign: 'center', marginTop: '8px' }}>
+                          <Space size="middle">
+                            <Button 
+                              type="primary" 
+                              htmlType="submit" 
+                              icon={<SearchOutlined />} 
+                              loading={loading} 
+                              size="large"
+                              style={{ minWidth: '120px' }}
+                            >
+                              查询
+                            </Button>
+                            <Button 
+                              icon={<ReloadOutlined />} 
+                              onClick={handleReset} 
+                              size="large"
+                              style={{ minWidth: '120px' }}
+                            >
+                              重置
+                            </Button>
+                          </Space>
+                        </Col>
+                      </Row>
+                    </Form>
+                  </Card>
+                )}
               </div>
             </div>
           </div>
@@ -507,7 +737,7 @@ const NewHome = () => {
                       hoverable
                       className="feature-card"
                       bodyStyle={{ padding: '32px 24px' }}
-                      onClick={() => navigate(feature.link)}
+                      onClick={() => handleFeatureClick(feature)}
                     >
                       <div className="feature-icon">
                         {feature.icon}
