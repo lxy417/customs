@@ -136,11 +136,32 @@ const DataQuery = () => {
         // 获取海关编码的中文描述
         if (customsCodes.length > 0) {
           try {
-            const descriptions = await dataAPI.getMultipleHSCodeDescriptions(customsCodes);
-            const options = customsCodes.map(code => ({
+            // 从6位海关编码中提取2位、4位前缀编码
+            const allCodes = new Set();
+            
+            // 添加原始的6位编码
+            customsCodes.forEach(code => {
+              if (code && code.length === 6) {
+                allCodes.add(code);
+                // 添加2位前缀
+                allCodes.add(code.substring(0, 2));
+                // 添加4位前缀
+                allCodes.add(code.substring(0, 4));
+              }
+            });
+            
+            // 转换为数组并按字符串排序
+            const sortedCodes = Array.from(allCodes).sort();
+            
+            // 批量获取所有编码的中文描述
+            const descriptions = await dataAPI.getMultipleHSCodeDescriptions(sortedCodes);
+            
+            // 创建选项数组，按排序后的顺序
+            const options = sortedCodes.map(code => ({
               value: code,
               label: descriptions[code] ? `${code} - ${descriptions[code]}` : code
             }));
+            
             setHsCodeOptions(options);
           } catch (error) {
             console.error('获取HSCode描述失败:', error);

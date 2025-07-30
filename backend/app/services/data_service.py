@@ -154,7 +154,7 @@ class DataService:
                 "terms": {"海关编码": query_params['allowed_customs_codes']}
             })
         
-        # 修改海关编码查询以支持多个编码
+        # 修改海关编码查询以支持多个编码和前缀查询
         if query_params.get('customs_code'):
             customs_codes = query_params['customs_code']
             
@@ -169,11 +169,32 @@ class DataService:
             
             if customs_codes:
                 if len(customs_codes) == 1:
-                    # 单个海关编码使用term查询
-                    query_body["bool"]["must"].append({"term": {"海关编码": customs_codes[0]}})
+                    code = customs_codes[0].strip()
+                    # 检查是否为完整的海关编码（6位数字）
+                    if len(code) == 6 and code.isdigit():
+                        # 完整编码使用精确匹配
+                        query_body["bool"]["must"].append({"term": {"海关编码": code}})
+                    else:
+                        # 前缀查询：支持2位、4位前缀查询
+                        query_body["bool"]["must"].append({"prefix": {"海关编码": code}})
                 else:
-                    # 多个海关编码使用terms查询
-                    query_body["bool"]["must"].append({"terms": {"海关编码": customs_codes}})
+                    # 多个海关编码的情况，需要分别处理
+                    should_queries = []
+                    for code in customs_codes:
+                        code = code.strip()
+                        if len(code) == 6 and code.isdigit():
+                            # 完整编码使用精确匹配
+                            should_queries.append({"term": {"海关编码": code}})
+                        else:
+                            # 前缀查询
+                            should_queries.append({"prefix": {"海关编码": code}})
+                    
+                    query_body["bool"]["must"].append({
+                        "bool": {
+                            "should": should_queries,
+                            "minimum_should_match": 1
+                        }
+                    })
         
         if query_params.get('import_country'):
             query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
