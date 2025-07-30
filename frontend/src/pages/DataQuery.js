@@ -1007,7 +1007,7 @@ const DataQuery = () => {
       </div>
       
       <div style={{ display:"flex", height:"0" ,flex:1}} >
-        <div style={{height: "100%",flex:1,marginRight:16 }} >
+        <div style={{height: "100%",flex:1,marginRight:16,maxWidth: "350px" }} >
           <div style={{background:"#fff",height:"100%",width:"100%",borderRadius:8,padding:16}}>
             <Form
               style={{height:"100%", overflowY:"auto", overflowX:"hidden"}}
@@ -1028,6 +1028,7 @@ const DataQuery = () => {
                       filterOption={(input, option) =>
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                       }
+                      className="custom-select"
                       options={hsCodeOptions}
                     />
                   </Form.Item>

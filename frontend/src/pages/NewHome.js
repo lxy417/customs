@@ -295,7 +295,7 @@ const NewHome = () => {
         // 移除date_range属性
         date_range: undefined
       };
-
+      debugger
       // 跳转到数据查询页面并传递参数
       navigate('/data-query', { state: params });
     } catch (error) {

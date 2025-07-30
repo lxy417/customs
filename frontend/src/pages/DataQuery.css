@@ -26,3 +26,39 @@
 .ant-pagination {
   height: 0px;
 }
+
+/* 海关编码选择框样式 - 防止长文本导致布局问题 */
+.custom-select .ant-select-selector {
+  border-radius: 8px !important;
+  border: 2px solid #e8e8e8 !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.custom-select .ant-select-selector .ant-select-selection-item {
+  text-align: left !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.custom-select .ant-select-selector .ant-select-selection-placeholder {
+  text-align: left !important;
+}
+
+.custom-select .ant-select-selector:hover {
+  border-color: #40a9ff !important;
+  box-shadow: 0 4px 12px rgba(64, 169, 255, 0.15) !important;
+}
+
+.custom-select.ant-select-focused .ant-select-selector {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+}
+
+/* 下拉选项样式 */
+.custom-select .ant-select-dropdown .ant-select-item-option-content {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
