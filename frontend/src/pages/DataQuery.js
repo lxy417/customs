@@ -384,15 +384,25 @@ const DataQuery = () => {
   const handleTableChange = (paginations, filters, sorter) => {
     setPagination(prev => ({...prev, ...paginations}))
     setSorter(sorter);
+    
+    // 处理筛选器
+    const filterParams = {};
+    Object.keys(filters).forEach(key => {
+      if (filters[key] && filters[key].length > 0) {
+        filterParams[`filter_${key}`] = filters[key];
+      }
+    });
+    
     // 获取当前表单值并重新查询
     form.validateFields().then(values => {
       handleSearch({
-      ...values,
-      sort_by: sorter.field || '日期',
-      sort_order: sorter.order === 'ascend' ? 'asc' : 'desc',
-      page: paginations.current,
-      page_size: paginations.pageSize
-    });
+        ...values,
+        ...filterParams,
+        sort_by: sorter.field || '日期',
+        sort_order: sorter.order === 'ascend' ? 'asc' : 'desc',
+        page: paginations.current,
+        page_size: paginations.pageSize
+      });
     });
   };
 
@@ -405,55 +415,223 @@ const DataQuery = () => {
       sorter: true,
       width: 120,
       fixed: 'left',
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索海关编码"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['海关编码']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: '编码产品描述',
       dataIndex: '编码产品描述',
       key: '编码产品描述',
       sorter: true,
-      width: 180
+      width: 180,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索产品描述"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['编码产品描述']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: '日期',
       dataIndex: '日期',
       key: '日期',
       sorter: true,
-      width: 120
+      width: 120,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <RangePicker
+            value={selectedKeys[0] ? [moment(selectedKeys[0][0]), moment(selectedKeys[0][1])] : []}
+            onChange={dates => setSelectedKeys(dates ? [dates.map(d => d?.format('YYYY-MM-DD'))] : [])}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => {
+        if (!value || !value[0] || !value[1]) return true;
+        const recordDate = moment(record['日期']);
+        return recordDate.isBetween(moment(value[0]), moment(value[1]), 'day', '[]');
+      },
     },
     {
       title: '进口商',
       dataIndex: '进口商',
       key: '进口商',
       sorter: true,
-      width: 150
+      width: 150,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索进口商"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['进口商']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: '进口国家',
       dataIndex: '进口商所在国家',
       key: '进口商所在国家',
       sorter: true,
-      width: 120
+      width: 120,
+      filters: countries.import?.map(country => ({ text: country, value: country })) || [],
+      onFilter: (value, record) => record['进口商所在国家'] === value,
     },
     {
       title: '出口商',
       dataIndex: '出口商',
       key: '出口商',
       sorter: true,
-      width: 150
+      width: 150,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索出口商"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['出口商']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: '出口国家',
       dataIndex: '出口商所在国家',
       key: '出口商所在国家',
       sorter: true,
-      width: 120
+      width: 120,
+      filters: countries.export?.map(country => ({ text: country, value: country })) || [],
+      onFilter: (value, record) => record['出口商所在国家'] === value,
     },
     {
       title: '数量单位',
       dataIndex: '数量单位',
       key: '数量单位',
       sorter: true,
-      width: 100
+      width: 100,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索数量单位"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['数量单位']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: '数量',
@@ -461,7 +639,52 @@ const DataQuery = () => {
       key: '数量',
       sorter: true,
       width: 100,
-      render: (text) => text?.toFixed(2)
+      render: (text) => text?.toFixed(2),
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="最小值"
+            value={selectedKeys[0]?.split('-')[0] || ''}
+            onChange={e => {
+              const max = selectedKeys[0]?.split('-')[1] || '';
+              setSelectedKeys(e.target.value || max ? [`${e.target.value}-${max}`] : []);
+            }}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Input
+            placeholder="最大值"
+            value={selectedKeys[0]?.split('-')[1] || ''}
+            onChange={e => {
+              const min = selectedKeys[0]?.split('-')[0] || '';
+              setSelectedKeys(min || e.target.value ? [`${min}-${e.target.value}`] : []);
+            }}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => {
+        const [min, max] = value.split('-');
+        const recordValue = parseFloat(record['数量']);
+        if (min && max) return recordValue >= parseFloat(min) && recordValue <= parseFloat(max);
+        if (min) return recordValue >= parseFloat(min);
+        if (max) return recordValue <= parseFloat(max);
+        return true;
+      },
     },
     {
       title: '公吨',
@@ -469,7 +692,52 @@ const DataQuery = () => {
       key: '公吨',
       sorter: true,
       width: 100,
-      render: (text) => text?.toFixed(4)
+      render: (text) => text?.toFixed(4),
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="最小值"
+            value={selectedKeys[0]?.split('-')[0] || ''}
+            onChange={e => {
+              const max = selectedKeys[0]?.split('-')[1] || '';
+              setSelectedKeys(e.target.value || max ? [`${e.target.value}-${max}`] : []);
+            }}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Input
+            placeholder="最大值"
+            value={selectedKeys[0]?.split('-')[1] || ''}
+            onChange={e => {
+              const min = selectedKeys[0]?.split('-')[0] || '';
+              setSelectedKeys(min || e.target.value ? [`${min}-${e.target.value}`] : []);
+            }}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => {
+        const [min, max] = value.split('-');
+        const recordValue = parseFloat(record['公吨']);
+        if (min && max) return recordValue >= parseFloat(min) && recordValue <= parseFloat(max);
+        if (min) return recordValue >= parseFloat(min);
+        if (max) return recordValue <= parseFloat(max);
+        return true;
+      },
     },
     {
       title: '金额美元',
@@ -477,35 +745,168 @@ const DataQuery = () => {
       key: '金额美元',
       sorter: true,
       width: 120,
-      render: (text) => text?.toFixed(2)
+      render: (text) => text?.toFixed(2),
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="最小值"
+            value={selectedKeys[0]?.split('-')[0] || ''}
+            onChange={e => {
+              const max = selectedKeys[0]?.split('-')[1] || '';
+              setSelectedKeys(e.target.value || max ? [`${e.target.value}-${max}`] : []);
+            }}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Input
+            placeholder="最大值"
+            value={selectedKeys[0]?.split('-')[1] || ''}
+            onChange={e => {
+              const min = selectedKeys[0]?.split('-')[0] || '';
+              setSelectedKeys(min || e.target.value ? [`${min}-${e.target.value}`] : []);
+            }}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => {
+        const [min, max] = value.split('-');
+        const recordValue = parseFloat(record['金额美元']);
+        if (min && max) return recordValue >= parseFloat(min) && recordValue <= parseFloat(max);
+        if (min) return recordValue >= parseFloat(min);
+        if (max) return recordValue <= parseFloat(max);
+        return true;
+      },
     },
     {
       title: '详细产品名称',
       dataIndex: '详细产品名称',
       key: '详细产品名称',
       sorter: true,
-      width: 200
+      width: 200,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索产品名称"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['详细产品名称']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: '提单号',
       dataIndex: '提单号',
       key: '提单号',
       sorter: true,
-      width: 150
+      width: 150,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索提单号"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['提单号']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: '数据来源',
       dataIndex: '数据来源',
       key: '数据来源',
       sorter: true,
-      width: 120
+      width: 120,
+      filters: [
+        { text: '海关总署', value: '海关总署' },
+        { text: '进出口数据', value: '进出口数据' },
+        { text: '贸易统计', value: '贸易统计' },
+        { text: '第三方数据', value: '第三方数据' },
+      ],
+      onFilter: (value, record) => record['数据来源'] === value,
     },
     {
       title: '关单号',
       dataIndex: '关单号',
       key: '关单号',
       sorter: true,
-      width: 150
+      width: 150,
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="搜索关单号"
+            value={selectedKeys[0]}
+            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              搜索
+            </Button>
+            <Button onClick={() => clearFilters()} size="small" style={{ width: 90 }}>
+              重置
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+      onFilter: (value, record) => record['关单号']?.toString().toLowerCase().includes(value.toLowerCase()),
     },
     // 操作列，根据权限显示
     ...(hasPermission(PERMISSIONS.DATA_UPDATE) || hasPermission(PERMISSIONS.DATA_DELETE) ? [{
