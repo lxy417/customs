@@ -74,6 +74,8 @@ const NewHome = () => {
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [timelineNews, setTimelineNews] = useState([]);
   const timelineRef = useRef(null);
+
+  const [hsCodeOptions, setHsCodeOptions] = useState([]);
   
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -141,15 +143,36 @@ const NewHome = () => {
           dataAPI.getCountries()
         ]);
         
-        setCustomsCodes(codesResponse);
-        setImportCountries(countriesResponse.import_countries);
-        setExportCountries(countriesResponse.export_countries);
+        const customsCodes = codesResponse || [];
+        setCustomsCodes(customsCodes);
+        setImportCountries(countriesResponse?.import_countries || []);
+        setExportCountries(countriesResponse?.export_countries || []);
+        
+        // 获取海关编码的中文描述
+        if (customsCodes.length > 0) {
+          try {
+            const descriptions = await dataAPI.getMultipleHSCodeDescriptions(customsCodes);
+            const options = customsCodes.map(code => ({
+              value: code,
+              label: descriptions[code] ? `${code} - ${descriptions[code]}` : code
+            }));
+            setHsCodeOptions(options);
+          } catch (error) {
+            console.error('获取HSCode描述失败:', error);
+            // 如果获取描述失败，只显示编码
+            const options = customsCodes.map(code => ({
+              value: code,
+              label: code
+            }));
+            setHsCodeOptions(options);
+          }
+        }
         
         // 设置统计数据
         setStats({
           totalRecords: 2580000, // 示例数据
-          countries: countriesResponse.import_countries.length + countriesResponse.export_countries.length,
-          customsCodes: codesResponse.length,
+          countries: (countriesResponse?.data?.import_countries?.length || 0) + (countriesResponse?.data?.export_countries?.length || 0),
+          customsCodes: customsCodes.length,
           lastUpdate: new Date().toLocaleDateString()
         });
       } catch (error) {
@@ -436,18 +459,15 @@ const NewHome = () => {
                             <Select
                               showSearch
                               allowClear
-                              placeholder="选择或输入海关编码"
+                              placeholder="选择海关编码"
                               style={{ width: '100%' }}
                               filterOption={(input, option) =>
-                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                               }
                               size="middle"
                               className="custom-select"
-                            >
-                              {(customsCodes || []).map(code => (
-                                <Option key={code} value={code}>{code}</Option>
-                              ))}
-                            </Select>
+                              options={hsCodeOptions}
+                            />
                           </Form.Item>
                         </Col>
 

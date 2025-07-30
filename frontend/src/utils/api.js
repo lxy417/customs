@@ -127,6 +127,11 @@ export const dataAPI = {
     api.get('/api/v1/data/exporters/suggestions', { params: { query, limit } })
       .then(response => response.data),
 
+  // HSCode相关API - 简化版本
+  // 批量获取多个HSCode的中文描述
+  getMultipleHSCodeDescriptions: (hscodes) => 
+    api.post('/api/v1/data/hscode/batch', hscodes),
+  
   // 保持原有的search方法以兼容现有代码
   search: (params) => api.get('/api/v1/data/search', { params }).then(response => response.data),
   export: (queryParams) => api.post('/api/v1/data/export', { query_params: queryParams }),

@@ -37,6 +37,10 @@ const DataQuery = () => {
     exporters: []
   });
 
+  // HSCode相关状态
+  const [hsCodeOptions, setHsCodeOptions] = useState([]);
+  const [hsCodeLoading, setHsCodeLoading] = useState(false);
+
   // 从首页接收搜索参数并自动填充
   useEffect(() => {
       const searchParams = location.state;
@@ -122,17 +126,39 @@ const DataQuery = () => {
           dataAPI.getCustomsCodes(),
           dataAPI.getCountries()
         ]);
-        setCustomsCodes(codesResponse || []);
+        const customsCodes = codesResponse || [];
+        setCustomsCodes(customsCodes);
         setCountries({
           import: countriesResponse?.import_countries || [],
           export: countriesResponse?.export_countries || []
         });
+        
+        // 获取海关编码的中文描述
+        if (customsCodes.length > 0) {
+          try {
+            const descriptions = await dataAPI.getMultipleHSCodeDescriptions(customsCodes);
+            const options = customsCodes.map(code => ({
+              value: code,
+              label: descriptions[code] ? `${code} - ${descriptions[code]}` : code
+            }));
+            setHsCodeOptions(options);
+          } catch (error) {
+            console.error('获取HSCode描述失败:', error);
+            // 如果获取描述失败，只显示编码
+            const options = customsCodes.map(code => ({
+              value: code,
+              label: code
+            }));
+            setHsCodeOptions(options);
+          }
+        }
       } catch (error) {
         console.error('获取选项数据失败:', error);
         message.error('获取选项数据失败，请刷新页面重试');
         // 设置默认值以防止错误
         setCustomsCodes([]);
         setCountries({ import: [], export: [] });
+        setHsCodeOptions([]);
       } finally {
         setLoading(false);
       }
@@ -170,6 +196,8 @@ const DataQuery = () => {
       setSuggestions(prev => ({ ...prev, exporters: [] }));
     }
   };
+
+
 
   // 处理查询
   const handleSearch = async (values) => {
@@ -974,16 +1002,13 @@ const DataQuery = () => {
                     <Select
                       showSearch
                       allowClear
-                      placeholder="选择或输入海关编码"
+                      placeholder="选择海关编码"
                       style={{ width: '100%' }}
                       filterOption={(input, option) =>
-                        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                       }
-                    >
-                      {(customsCodes || []).map(code => (
-                        <Option key={code} value={code}>{code}</Option>
-                      ))}
-                    </Select>
+                      options={hsCodeOptions}
+                    />
                   </Form.Item>
                 </Col>
 

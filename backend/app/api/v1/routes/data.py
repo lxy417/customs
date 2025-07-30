@@ -301,3 +301,26 @@ async def get_all_countries(
     except Exception as e:
         logger.error(f"获取国家列表失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"获取国家列表失败: {str(e)}")
+
+# 删除原有的HSCode路由，只保留批量查询接口
+@router.post("/hscode/batch", response_model=Dict[str, str], tags=["HSCode查询"])
+@require_permissions([Permissions.DATA_VIEW])
+async def get_multiple_hscode_descriptions(
+    hscodes: List[str] = Body(..., description="HSCode列表"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """批量获取多个HSCode的中文描述"""
+    try:
+        if not hscodes:
+            raise HTTPException(status_code=400, detail="HSCode列表不能为空")
+        
+        if len(hscodes) > 100:  # 限制批量查询数量
+            raise HTTPException(status_code=400, detail="一次最多查询100个HSCode")
+        
+        from app.services.hscode_service import hscode_service
+        return hscode_service.get_multiple_descriptions(hscodes)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量获取HSCode描述失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"批量获取HSCode描述失败: {str(e)}")

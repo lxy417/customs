@@ -7,6 +7,7 @@ from app.config.settings import settings
 from pydantic import BaseModel
 from elasticsearch.helpers import bulk
 import pandas as pd
+from .hscode_service import hscode_service
 
 logger = logging.getLogger(__name__)
 
@@ -153,9 +154,26 @@ class DataService:
                 "terms": {"海关编码": query_params['allowed_customs_codes']}
             })
         
-        # 添加基本查询条件
+        # 修改海关编码查询以支持多个编码
         if query_params.get('customs_code'):
-            query_body["bool"]["must"].append({"term": {"海关编码": query_params['customs_code']}})
+            customs_codes = query_params['customs_code']
+            
+            # 如果是字符串，转换为列表
+            if isinstance(customs_codes, str):
+                customs_codes = [customs_codes]
+            elif not isinstance(customs_codes, list):
+                customs_codes = [str(customs_codes)]
+            
+            # 过滤空值
+            customs_codes = [code for code in customs_codes if code and str(code).strip()]
+            
+            if customs_codes:
+                if len(customs_codes) == 1:
+                    # 单个海关编码使用term查询
+                    query_body["bool"]["must"].append({"term": {"海关编码": customs_codes[0]}})
+                else:
+                    # 多个海关编码使用terms查询
+                    query_body["bool"]["must"].append({"terms": {"海关编码": customs_codes}})
         
         if query_params.get('import_country'):
             query_body["bool"]["must"].append({"term": {"进口商所在国家": query_params['import_country']}})
