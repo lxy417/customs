@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     ELASTICSEARCH_HOST: str = "localhost"
     ELASTICSEARCH_PORT: int = 9200
     ELASTICSEARCH_USER: Optional[str] = "elastic"
-    ELASTICSEARCH_PASSWORD: Optional[str] = "changeme"
+    ELASTICSEARCH_PASSWORD: Optional[str] = "chenchen417"
     ELASTICSEARCH_SCHEME: str = "http"
     ELASTICSEARCH_VERIFY_CERTS: bool = False
     ES_INDEX_PREFIX: str = "customs"
