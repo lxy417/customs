@@ -13,7 +13,6 @@ class ImportTaskService:
         self.index_name = f"{settings.DATA_INDEX}_import_tasks"
         self._create_index_if_not_exists()
 
-    # 在 _create_index_if_not_exists 方法中添加回滚相关字段
     def _create_index_if_not_exists(self):
         """创建导入任务索引"""
         if not self.es_client.indices.exists(index=self.index_name):
@@ -38,19 +37,48 @@ class ImportTaskService:
                         "processed_files": {"type": "object"},
                         "error_details": {"type": "object"},
                         "processing_options": {"type": "object"},
-                        # 新增回滚相关字段
+                        # 回滚相关字段
                         "imported_document_ids": {"type": "keyword"},  # 导入的文档ID列表
                         "rollback_status": {"type": "keyword"},  # none, pending, completed, failed
                         "rollback_at": {"type": "date"},  # 回滚时间
                         "rollback_by": {"type": "keyword"},  # 回滚操作用户
-                        "rollback_details": {"type": "object"}  # 回滚详情
+                        "rollback_details": {"type": "object"},  # 回滚详情
+                        # 新增数据源相关字段
+                        "data_source": {"type": "keyword"},  # 数据获取网站 (gtm.sinoimex|国贸通)
+                        "data_source_counts": {"type": "object"}  # 各数据源的记录数统计
                     }
                 }
             }
             self.es_client.indices.create(index=self.index_name, body=mapping)
             logger.info(f"创建导入任务索引: {self.index_name}")
+        else:
+            # 检查是否需要更新映射
+            self._update_mapping_if_needed()
 
-    # 添加更新导入文档ID的方法
+    def _update_mapping_if_needed(self):
+        """更新索引映射（如果需要）"""
+        try:
+            # 获取当前映射
+            current_mapping = self.es_client.indices.get_mapping(index=self.index_name)
+            properties = current_mapping[self.index_name]['mappings']['properties']
+            
+            # 检查是否缺少数据源相关字段
+            updates_needed = {}
+            if 'data_source' not in properties:
+                updates_needed['data_source'] = {"type": "keyword"}
+            if 'data_source_counts' not in properties:
+                updates_needed['data_source_counts'] = {"type": "object"}
+            
+            if updates_needed:
+                logger.info(f"添加数据源相关字段到导入任务索引映射: {list(updates_needed.keys())}")
+                self.es_client.indices.put_mapping(
+                    index=self.index_name,
+                    body={"properties": updates_needed}
+                )
+                logger.info("成功添加数据源相关字段")
+        except Exception as e:
+            logger.error(f"更新导入任务索引映射失败: {str(e)}")
+
     async def update_imported_document_ids(
         self,
         task_id: str,
@@ -75,7 +103,6 @@ class ImportTaskService:
             logger.error(f"更新导入文档ID失败: {task_id}, {str(e)}")
             return False
 
-    # 添加回滚状态更新方法
     async def update_rollback_status(
         self,
         task_id: str,
@@ -115,7 +142,8 @@ class ImportTaskService:
         original_filename: str, 
         user_id: str,
         total_files: int = 1,
-        processing_options: Optional[Dict] = None
+        processing_options: Optional[Dict] = None,
+        data_source: Optional[List[str]] = None  # 修改：数据源数组参数
     ) -> str:
         """创建新的导入任务"""
         task_id = str(uuid.uuid4())
@@ -132,7 +160,9 @@ class ImportTaskService:
             "original_total_count": 0,  # 新增原文件总记录数
             "total_count": 0,
             "created_at": datetime.now().isoformat(),
-            "processing_options": processing_options or {}
+            "processing_options": processing_options or {},
+            "data_source": data_source or [],  # 修改：数据源数组字段
+            "data_source_counts": {}  # 新增数据源统计字段
         }
         
         self.es_client.index(
@@ -141,7 +171,7 @@ class ImportTaskService:
             body=task_data
         )
         
-        logger.info(f"创建导入任务: {task_id}")
+        logger.info(f"创建导入任务: {task_id}, 数据源: {data_source}")
         return task_id
 
     async def update_task(
@@ -151,12 +181,14 @@ class ImportTaskService:
         success_count: Optional[int] = None,
         failed_count: Optional[int] = None,
         duplicate_count: Optional[int] = None,
-        original_total_count: Optional[int] = None,  # 新增原文件总记录数参数
+        original_total_count: Optional[int] = None,
         customs_codes: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         processed_files: Optional[List[Dict[str, Any]]] = None,
-        error_details: Optional[List[Dict[str, Any]]] = None
+        error_details: Optional[List[Dict[str, Any]]] = None,
+        data_source: Optional[List[str]] = None,  # 修改：数据源数组参数
+        data_source_counts: Optional[Dict[str, int]] = None  # 数据源统计参数
     ) -> bool:
         """更新导入任务"""
         try:
@@ -196,6 +228,12 @@ class ImportTaskService:
             if error_details:
                 update_doc['error_details'] = error_details
             
+            if data_source:
+                update_doc['data_source'] = data_source
+            
+            if data_source_counts:
+                update_doc['data_source_counts'] = data_source_counts
+            
             response = self.es_client.update(
                 index=self.index_name,
                 id=task_id,
@@ -205,7 +243,7 @@ class ImportTaskService:
             return response['result'] in ['updated', 'noop']
             
         except Exception as e:
-            logger.error(f"更新任务失败: {task_id}, {str(e)}")
+            logger.error(f"更新导入任务失败: {task_id}, {str(e)}")
             return False
 
     async def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:

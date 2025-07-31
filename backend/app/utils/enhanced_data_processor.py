@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-import os
-import uuid
 from datetime import datetime
+import os
+import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import hashlib
@@ -18,14 +18,197 @@ from app.services.data_service import DataService
 logger = get_logger('app.utils.enhanced_data_processor')
 
 class EnhancedDataProcessor:
+    """增强的数据处理器"""
+    
     def __init__(self, output_dir: str = "./processed_data"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
-        self.es_client = ESClient.get_client()
-        self.index_name = settings.DATA_INDEX
-        
-        # 使用DataService来处理数据操作
         self.data_service = DataService()
+        
+        # GTM数据转换的目标列（与国贸通格式一致）
+        self.target_columns = [
+            "海关编码", "编码产品描述", "日期", "月度", "进口商", "进口商所在国家", 
+            "出口商所在国家", "出口商", "重量单位", "数量单位", "数量", "毛重", 
+            "净重", "公吨", "金额美元", "美元重量计单价", "美元数量计单价", 
+            "本国币种金额", "合同金额", "币种", "成交方式", "详细产品名称", 
+            "产品规格型号品牌", "当地港口", "国外港口", "运输方式", "贸易方式", 
+            "中转国", "提单号", "编码产品描述本国语言", "详细产品名称本国语言", 
+            "产品规格型号品牌本国语言", "进口商本地语言", "数据来源", 
+            "出口商本地语言", "关单号", "申报数量", "数据获取网站"
+        ]
+
+
+    def _find_gtm_header_row(self, df: pd.DataFrame) -> int:
+        """查找GTM数据的表头行"""
+        expected_fields = ['DATE', 'IMPORTER', 'EXPORTER', 'HS_CODE', 'PRODUCT']
+        
+        for i in range(min(20, len(df))):  # 检查前20行
+            row = df.iloc[i]
+            row_str = ' '.join([str(val).upper() for val in row.values if pd.notna(val)])
+            matches = sum(1 for field in expected_fields if field in row_str)
+            if matches >= 3:  # 至少匹配3个字段
+                logger.info(f"找到GTM表头行: 第{i+1}行")
+                return i
+        
+        # 如果没找到，默认使用第6行（索引6）
+        logger.info("未找到明确的GTM表头行，使用默认第7行")
+        return 6
+
+    def _clean_hs_code_gtm(self, hs_code):
+        """清理GTM海关编码并截取前6位"""
+        if pd.isna(hs_code) or not hs_code:
+            return ""
+        
+        # 转换为字符串并移除非数字字符
+        hs_str = str(hs_code).strip()
+        hs_str = re.sub(r'[^\d]', '', hs_str)
+        
+        # 取前6位
+        if len(hs_str) >= 6:
+            return hs_str[:6]
+        elif len(hs_str) > 0:
+            return hs_str
+        else:
+            return ""
+
+    def _calculate_month_gtm(self, date_value):
+        """从日期计算月度"""
+        if pd.isna(date_value):
+            return ""
+        
+        try:
+            if isinstance(date_value, str):
+                date_obj = pd.to_datetime(date_value)
+            else:
+                date_obj = date_value
+            
+            return date_obj.strftime('%Y%m')
+        except:
+            return ""
+
+    def _calculate_tonnage_gtm(self, weight_kg):
+        """从净重(KG)计算公吨"""
+        if pd.isna(weight_kg) or not weight_kg:
+            return ""
+        
+        try:
+            weight_float = float(weight_kg)
+            return weight_float / 1000
+        except:
+            return ""
+
+    def _convert_gtm_to_standard_format(self, df: pd.DataFrame, filename: str = "") -> pd.DataFrame:
+        """将GTM数据转换为国贸通标准格式"""
+        logger.info("开始将GTM数据转换为国贸通标准格式")
+        
+        # 查找表头行
+        header_row = self._find_gtm_header_row(df)
+        
+        # 重新读取数据，使用找到的表头行
+        if header_row > 0:
+            # 提取表头
+            headers = df.iloc[header_row].values
+            # 提取数据（跳过表头行和可能的空行）
+            data_start = header_row + 1
+            if data_start < len(df) and df.iloc[data_start].isna().all():
+                data_start += 1  # 跳过空行
+            
+            # 重新构建DataFrame
+            data_rows = df.iloc[data_start:].values
+            df = pd.DataFrame(data_rows, columns=headers)
+            logger.info(f"重新构建GTM DataFrame，数据从第{data_start+1}行开始，形状: {df.shape}")
+        
+        # 创建转换后的数据
+        converted_data = []
+        
+        for index, row in df.iterrows():
+            # 跳过空行
+            if row.isna().all():
+                continue
+                
+            # 创建新记录，初始化所有目标列为空
+            new_record = {col: "" for col in self.target_columns}
+            
+            # 映射字段 - 使用模糊匹配
+            for source_col in df.columns:
+                if pd.isna(source_col):
+                    continue
+                    
+                source_col_upper = str(source_col).upper()
+                target_col = None
+                
+                # 模糊匹配字段名
+                if 'DATE' in source_col_upper:
+                    target_col = '日期'
+                elif 'IMPORTER' in source_col_upper:
+                    target_col = '进口商'
+                elif 'EXPORTER' in source_col_upper:
+                    target_col = '出口商'
+                elif 'HS_CODE' in source_col_upper or 'HSCODE' in source_col_upper:
+                    target_col = '海关编码'
+                elif 'PRODUCT' in source_col_upper and 'COMMODITY' not in source_col_upper:
+                    target_col = '详细产品名称'
+                elif 'COMMODITY' in source_col_upper:
+                    target_col = '详细产品名称本国语言'
+                elif 'WEIGHT_KG' in source_col_upper or ('WEIGHT' in source_col_upper and 'KG' in source_col_upper):
+                    target_col = '净重'
+                elif 'QTY_UNIT' in source_col_upper:
+                    target_col = '数量单位'
+                elif 'QTY' in source_col_upper and 'UNIT' not in source_col_upper:
+                    target_col = '数量'
+                elif 'LOAD_PORT' in source_col_upper:
+                    target_col = '当地港口'
+                elif 'LOAD_COUNTRY' in source_col_upper:
+                    target_col = '出口商所在国家'
+                elif 'DES_COUNTRY' in source_col_upper:
+                    target_col = '进口商所在国家'
+                elif 'DES_PORT' in source_col_upper:
+                    target_col = '国外港口'
+                elif 'TRANS_MODE' in source_col_upper:
+                    target_col = '运输方式'
+                elif 'DATASOURCE' in source_col_upper or 'DATA_SOURCE' in source_col_upper:
+                    target_col = '数据来源'
+                
+                # 如果找到匹配的字段，进行转换
+                if target_col and target_col in new_record:
+                    value = row[source_col]
+                    if pd.notna(value):
+                        if target_col == '海关编码':
+                            new_record[target_col] = self._clean_hs_code_gtm(value)
+                        elif target_col == '日期':
+                            # 处理日期格式
+                            if isinstance(value, datetime):
+                                new_record[target_col] = value.strftime('%Y-%m-%d')
+                            else:
+                                try:
+                                    date_obj = pd.to_datetime(value)
+                                    new_record[target_col] = date_obj.strftime('%Y-%m-%d')
+                                except:
+                                    new_record[target_col] = str(value)
+                        else:
+                            new_record[target_col] = str(value)
+            
+            # 计算衍生字段
+            # 月度
+            if new_record['日期']:
+                new_record['月度'] = self._calculate_month_gtm(new_record['日期'])
+            
+            # 重量单位统一为KG
+            new_record['重量单位'] = 'KG'
+            
+            # 公吨计算
+            if new_record['净重']:
+                new_record['公吨'] = self._calculate_tonnage_gtm(new_record['净重'])
+            
+            # 只保留有海关编码的记录
+            if new_record['海关编码']:
+                converted_data.append(new_record)
+        
+        # 创建转换后的DataFrame
+        result_df = pd.DataFrame(converted_data, columns=self.target_columns)
+        logger.info(f"GTM数据转换完成，转换后数据形状: {result_df.shape}，有效记录数: {len(converted_data)}")
+        
+        return result_df
 
     def _map_country_name(self, country_value: Any) -> str:
         """将英文国家名映射为中文国家名"""
@@ -118,7 +301,7 @@ class EnhancedDataProcessor:
                             return idx
         return 0
 
-    def process_dataframe(self, df: pd.DataFrame, sheet_name: str = "") -> List[Dict[str, Any]]:
+    def process_dataframe(self, df: pd.DataFrame, sheet_name: str = "", filename: str = "", data_source: str = "") -> List[Dict[str, Any]]:
         """处理单个DataFrame"""
         required_columns = [
             "海关编码", "编码产品描述", "日期", "月度", "进口商", "进口商所在国家", 
@@ -128,9 +311,9 @@ class EnhancedDataProcessor:
             "产品规格型号品牌", "当地港口", "国外港口", "运输方式", "贸易方式", 
             "中转国", "提单号", "编码产品描述本国语言", "详细产品名称本国语言", 
             "产品规格型号品牌本国语言", "进口商本地语言", "数据来源", 
-            "出口商本地语言", "关单号", "申报数量"
+            "出口商本地语言", "关单号", "申报数量", "数据获取网站"
         ]
-        
+                
         # 检查必需列
         missing_cols = [col for col in required_columns if col not in df.columns]
         if missing_cols:
@@ -185,14 +368,160 @@ class EnhancedDataProcessor:
                         # 处理其他字段
                         record[col] = value
             
+            # 添加数据获取网站字段
+            record['数据获取网站'] = data_source
+            
             # 只保留有海关编码的记录
             if record.get('海关编码'):
                 processed_records.append(record)
-                logger.debug(f"处理记录 {idx + 1}: {len(record)} 个字段")
+                logger.debug(f"处理记录 {idx + 1}: {len(record)} 个字段，数据源: {data_source}")
         
-        logger.info(f"Sheet '{sheet_name}' 处理完成，有效记录: {len(processed_records)} 条")
+        logger.info(f"Sheet '{sheet_name}' 处理完成，有效记录: {len(processed_records)} 条，数据源: {data_source}")
         return processed_records
 
+    def _detect_data_source(self, file_path: str, sheet_name: str) -> bool:
+        """检测第7行是否是GTM数据的表头"""
+        try:
+            # 读取前10行来检查第7行
+            df_preview = pd.read_excel(file_path, sheet_name=sheet_name, header=None, nrows=10, engine='openpyxl')
+            
+            if len(df_preview) < 7:
+                return False
+            
+            # 检查第7行（索引6）
+            row_7 = df_preview.iloc[6]
+            row_str = ' '.join([str(val).upper() for val in row_7.values if pd.notna(val)])
+            
+            # GTM数据表头的特征字段
+            gtm_header_indicators = ['DATE', 'IMPORTER', 'EXPORTER', 'HS_CODE', 'PRODUCT', 'COMMODITY', 'WEIGHT_KG']
+            
+            # 检查匹配的字段数量
+            matches = sum(1 for indicator in gtm_header_indicators if indicator in row_str)
+            
+            if matches >= 4:  # 至少匹配4个字段
+                logger.info(f"第7行检测到GTM表头，匹配字段数: {matches}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"检测第7行GTM表头失败: {e}")
+            return False
+
+    def _convert_gtm_file_to_standard(self, file_path: str, sheet_name: str) -> pd.DataFrame:
+        """将GTM文件转换为国贸通标准格式"""
+        logger.info(f"开始转换GTM文件: {file_path}, sheet: {sheet_name}")
+        
+        try:
+            # 使用第7行作为表头读取数据
+            df = pd.read_excel(file_path, sheet_name=sheet_name, header=6, engine='openpyxl')
+            logger.info(f"GTM原始数据形状: {df.shape}")
+            logger.info(f"GTM原始列名: {list(df.columns)}")
+            
+            # 跳过可能的空行（第8行）
+            if len(df) > 0 and df.iloc[0].isna().all():
+                df = df.iloc[1:].reset_index(drop=True)
+                logger.info(f"跳过空行后GTM数据形状: {df.shape}")
+            
+            # 创建转换后的数据
+            converted_data = []
+            
+            for index, row in df.iterrows():
+                # 跳过空行
+                if row.isna().all():
+                    continue
+                    
+                # 创建新记录，初始化所有目标列为空
+                new_record = {col: "" for col in self.target_columns}
+                
+                # 映射字段 - 使用模糊匹配
+                for source_col in df.columns:
+                    if pd.isna(source_col):
+                        continue
+                        
+                    source_col_upper = str(source_col).upper()
+                    target_col = None
+                    
+                    # 模糊匹配字段名
+                    if 'DATE' in source_col_upper:
+                        target_col = '日期'
+                    elif 'IMPORTER' in source_col_upper:
+                        target_col = '进口商'
+                    elif 'EXPORTER' in source_col_upper:
+                        target_col = '出口商'
+                    elif 'HS_CODE' in source_col_upper or 'HSCODE' in source_col_upper:
+                        target_col = '海关编码'
+                    elif 'PRODUCT' in source_col_upper and 'COMMODITY' not in source_col_upper:
+                        target_col = '详细产品名称'
+                    elif 'COMMODITY' in source_col_upper:
+                        target_col = '详细产品名称本国语言'
+                    elif 'WEIGHT_KG' in source_col_upper or ('WEIGHT' in source_col_upper and 'KG' in source_col_upper):
+                        target_col = '净重'
+                    elif 'QTY_UNIT' in source_col_upper:
+                        target_col = '数量单位'
+                    elif 'QTY' in source_col_upper and 'UNIT' not in source_col_upper:
+                        target_col = '数量'
+                    elif 'LOAD_PORT' in source_col_upper:
+                        target_col = '当地港口'
+                    elif 'LOAD_COUNTRY' in source_col_upper:
+                        target_col = '出口商所在国家'
+                    elif 'DES_COUNTRY' in source_col_upper:
+                        target_col = '进口商所在国家'
+                    elif 'DES_PORT' in source_col_upper:
+                        target_col = '国外港口'
+                    elif 'TRANS_MODE' in source_col_upper:
+                        target_col = '运输方式'
+                    elif 'DATASOURCE' in source_col_upper or 'DATA_SOURCE' in source_col_upper:
+                        target_col = '数据来源'
+                    
+                    # 如果找到匹配的字段，进行转换
+                    if target_col and target_col in new_record:
+                        value = row[source_col]
+                        if pd.notna(value):
+                            if target_col == '海关编码':
+                                new_record[target_col] = self._clean_hs_code_gtm(value)
+                            elif target_col == '日期':
+                                # 处理日期格式
+                                if isinstance(value, datetime):
+                                    new_record[target_col] = value.strftime('%Y-%m-%d')
+                                else:
+                                    try:
+                                        date_obj = pd.to_datetime(value)
+                                        new_record[target_col] = date_obj.strftime('%Y-%m-%d')
+                                    except:
+                                        new_record[target_col] = str(value)
+                            else:
+                                new_record[target_col] = str(value)
+                
+                # 计算衍生字段
+                # 月度
+                if new_record['日期']:
+                    new_record['月度'] = self._calculate_month_gtm(new_record['日期'])
+                
+                # 重量单位统一为KG
+                new_record['重量单位'] = 'KG'
+                
+                # 公吨计算
+                if new_record['净重']:
+                    new_record['公吨'] = self._calculate_tonnage_gtm(new_record['净重'])
+                
+                # 设置数据获取网站
+                new_record['数据获取网站'] = 'gtm.sinoimex'
+                
+                # 只保留有海关编码的记录
+                if new_record['海关编码']:
+                    converted_data.append(new_record)
+            
+            # 创建转换后的DataFrame
+            result_df = pd.DataFrame(converted_data, columns=self.target_columns)
+            logger.info(f"GTM数据转换完成，转换后数据形状: {result_df.shape}，有效记录数: {len(converted_data)}")
+            
+            return result_df
+            
+        except Exception as e:
+            logger.error(f"GTM文件转换失败: {e}")
+            # 如果转换失败，返回空DataFrame
+            return pd.DataFrame(columns=self.target_columns)
 
     def process_excel_file(self, file_path: str, skip_duplicates: bool = True) -> Dict[str, Any]:
         """处理Excel文件，返回处理结果和输出文件信息"""
@@ -215,18 +544,26 @@ class EnhancedDataProcessor:
                 try:
                     logger.info(f"处理sheet: {sheet_name}")
                     
-                    # 读取sheet数据
-                    df = pd.read_excel(file_path, sheet_name=sheet_name, engine='openpyxl')
-                    logger.info(f"Sheet '{sheet_name}' 包含 {len(df)} 行数据")
+                    # 首先检测第7行是否是GTM表头
+                    is_gtm = self._detect_data_source(file_path, sheet_name)
                     
-                    # 处理数据
-                    records = self.process_dataframe(df, sheet_name)
-                    logger.info(f"Sheet '{sheet_name}' 处理后得到 {len(records)} 条记录")
-                    
-                    # 添加数据来源信息
-                    # for record in records:
-                    #     if '数据来源' not in record or not record['数据来源']:
-                    #         record['数据来源'] = f"{original_filename}#{sheet_name}"
+                    if is_gtm:
+                        # 如果是GTM数据，直接转换为标准格式
+                        logger.info(f"检测到GTM数据源，开始转换: {sheet_name}")
+                        df = self._convert_gtm_file_to_standard(file_path, sheet_name)
+                        
+                        # 处理数据，传入文件名用于数据源识别
+                        records = self.process_dataframe(df, sheet_name, original_filename, data_source='gtm.sinoimex')
+                        logger.info(f"GTM Sheet '{sheet_name}' 转换后得到 {len(records)} 条记录")
+                    else:
+                        # 如果是国贸通数据，使用原有逻辑
+                        logger.info(f"检测到国贸通数据源，使用标准处理: {sheet_name}")
+                        df = pd.read_excel(file_path, sheet_name=sheet_name, engine='openpyxl')
+                        logger.info(f"Sheet '{sheet_name}' 包含 {len(df)} 行数据")
+                        
+                        # 处理数据，传入文件名用于数据源识别
+                        records = self.process_dataframe(df, sheet_name, original_filename, data_source='国贸通')
+                        logger.info(f"Sheet '{sheet_name}' 处理后得到 {len(records)} 条记录")
                     
                     all_records.extend(records)
                     total_records += len(records)
@@ -402,7 +739,7 @@ class EnhancedDataProcessor:
                     task_service = ImportTaskService()
                     await task_service.update_imported_document_ids(task_id, imported_document_ids)
                     logger.info(f"任务 {task_id} 记录了 {len(imported_document_ids)} 个导入文档ID")
-                
+                    
                 return {
                     'success_count': result.get('success', 0),
                     'failed_count': result.get('failed', 0),

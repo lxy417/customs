@@ -8,7 +8,7 @@ import {
   UploadOutlined, FileExcelOutlined, HistoryOutlined, 
   BarChartOutlined, EyeOutlined, ReloadOutlined, SettingOutlined,
   CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, RollbackOutlined,
-  ExclamationCircleOutlined, InfoCircleOutlined
+  ExclamationCircleOutlined, InfoCircleOutlined, GlobalOutlined
 } from '@ant-design/icons';
 import { enhancedImportAPI, rollbackAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -203,7 +203,7 @@ const EnhancedImport = () => {
     }
   };
 
-  // 统一的状态配置函数
+  // 获取状态配置
   const getStatusConfig = (status) => {
     const statusConfigs = {
       'processing': { 
@@ -251,6 +251,74 @@ const EnhancedImport = () => {
     };
   };
 
+  // 渲染数据来源标签
+  const renderDataSource = (dataSource, dataSourceCounts) => {
+    // 如果有详细的数据源统计信息
+    if (dataSourceCounts && typeof dataSourceCounts === 'object' && Object.keys(dataSourceCounts).length > 0) {
+      const sources = Object.entries(dataSourceCounts);
+      
+      if (sources.length === 1) {
+        const [source, count] = sources[0];
+        return (
+          <Tag 
+            color={source === '国贸通' ? 'blue' : 'green'} 
+            icon={<GlobalOutlined />}
+          >
+            {source} ({count.toLocaleString()})
+          </Tag>
+        );
+      } else {
+        // 多个数据源
+        return (
+          <div>
+            {sources.map(([source, count], index) => (
+              <Tag 
+                key={index}
+                color={source === '国贸通' ? 'blue' : 'green'} 
+                icon={<GlobalOutlined />}
+                style={{ marginBottom: '2px' }}
+              >
+                {source} ({count.toLocaleString()})
+              </Tag>
+            ))}
+          </div>
+        );
+      }
+    }
+    
+    // 如果数据源是数组格式
+    if (Array.isArray(dataSource) && dataSource.length > 0) {
+      return (
+        <div>
+          {dataSource.map((source, index) => (
+            <Tag 
+              key={index}
+              color={source === '国贸通' ? 'blue' : 'green'} 
+              icon={<GlobalOutlined />}
+              style={{ marginBottom: '2px' }}
+            >
+              {source}
+            </Tag>
+          ))}
+        </div>
+      );
+    }
+    
+    // 如果只有主要数据源信息（字符串格式，向后兼容）
+    if (dataSource && typeof dataSource === 'string') {
+      return (
+        <Tag 
+          color={dataSource === '国贸通' ? 'blue' : 'green'} 
+          icon={<GlobalOutlined />}
+        >
+          {dataSource}
+        </Tag>
+      );
+    }
+    
+    return <Text type="secondary">-</Text>;
+  };
+
   // 历史记录表格列定义
   const historyColumns = [
     {
@@ -286,6 +354,12 @@ const EnhancedImport = () => {
           </Tag>
         );
       }
+    },
+    {
+      title: '数据来源',
+      key: 'data_source',
+      width: 150,
+      render: (_, record) => renderDataSource(record.data_source, record.data_source_counts)
     },
     {
       title: '海关编码',
@@ -883,6 +957,9 @@ const EnhancedImport = () => {
               </Descriptions.Item>
               <Descriptions.Item label="原始文件名">{selectedTask.original_filename}</Descriptions.Item>
               <Descriptions.Item label="上传用户">{selectedTask.user_id}</Descriptions.Item>
+              <Descriptions.Item label="数据来源" span={2}>
+                {renderDataSource(selectedTask.data_source, selectedTask.data_source_counts)}
+              </Descriptions.Item>
               <Descriptions.Item label="处理文件数">{selectedTask.processed_files?.length || 0}</Descriptions.Item>
               <Descriptions.Item label="原文件总数">{selectedTask.original_total_count || 0}</Descriptions.Item>
               <Descriptions.Item label="成功记录数">{selectedTask.success_count || 0}</Descriptions.Item>
@@ -893,6 +970,30 @@ const EnhancedImport = () => {
                 {selectedTask.completed_at ? moment(selectedTask.completed_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
               </Descriptions.Item>
             </Descriptions>
+
+            {/* 显示详细的数据源统计信息 */}
+            {selectedTask.data_source_counts && Object.keys(selectedTask.data_source_counts).length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <Title level={4}>数据来源统计</Title>
+                <Row gutter={16}>
+                  {Object.entries(selectedTask.data_source_counts).map(([source, count], index) => (
+                    <Col span={8} key={index}>
+                      <Card size="small">
+                        <Statistic
+                          title={source}
+                          value={count}
+                          valueStyle={{ 
+                            color: source === '国贸通' ? '#1890ff' : '#52c41a' 
+                          }}
+                          prefix={<GlobalOutlined />}
+                          suffix="条记录"
+                        />
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
+            )}
 
             {selectedTask.processed_files && selectedTask.processed_files.length > 0 && (
               <div style={{ marginTop: 16 }}>
