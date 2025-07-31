@@ -4,6 +4,7 @@ import logging
 import re
 from app.utils.elasticsearch import ESClient
 from app.config.settings import settings
+from app.config.elasticsearch_mappings import CUSTOMS_DATA_MAPPING, TEXT_FIELDS_WITH_KEYWORD, DEFAULT_SOURCE_FIELDS
 from pydantic import BaseModel
 from elasticsearch.helpers import bulk
 import pandas as pd
@@ -53,224 +54,8 @@ class DataService:
     def _create_index_if_not_exists(self):
         """创建数据索引（如果不存在）"""
         if not self.es_client.indices.exists(index=self.index_name):
-            mapping = {
-                "mappings": {
-                    "properties": {
-                        "海关编码": {"type": "keyword"},
-                        "编码产品描述": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "编码产品描述本国语言": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "日期": {"type": "date", "format": "yyyy-MM-dd"},
-                        "月度": {"type": "long"},
-                        "进口商": {
-                            "type": "keyword",
-                            "fields": {
-                                "text": {
-                                    "type": "text",
-                                    "analyzer": "standard"
-                                }
-                            }
-                        },
-                        "进口商所在国家": {"type": "keyword"},
-                        "进口商本地语言": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "出口商": {
-                            "type": "keyword",
-                            "fields": {
-                                "text": {
-                                    "type": "text",
-                                    "analyzer": "standard"
-                                }
-                            }
-                        },
-                        "出口商所在国家": {"type": "keyword"},
-                        "出口商本地语言": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "数量单位": {"type": "keyword"},
-                        "数量": {"type": "float"},
-                        "申报数量": {"type": "float"},
-                        "重量单位": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "净重": {"type": "float"},
-                        "毛重": {"type": "float"},
-                        "公吨": {"type": "float"},
-                        "金额美元": {"type": "float"},
-                        "美元数量计单价": {"type": "float"},
-                        "美元重量计单价": {"type": "float"},
-                        "币种": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "本国币种金额": {"type": "float"},
-                        "合同金额": {"type": "float"},
-                        "详细产品名称": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "详细产品名称本国语言": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "产品规格型号品牌": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "产品规格型号品牌本国语言": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "提单号": {"type": "keyword"},
-                        "关单号": {"type": "keyword"},
-                        "贸易方式": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "成交方式": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "运输方式": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "当地港口": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "国外港口": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "中转国": {
-                            "type": "text",
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256
-                                }
-                            }
-                        },
-                        "数据来源": {"type": "keyword"},
-                        "数据获取网站": {"type": "keyword"},
-                        "created_at": {"type": "date"},
-                        "updated_at": {"type": "date"}
-                    }
-                }
-            }
-            self.es_client.indices.create(index=self.index_name, body=mapping)
+            self.es_client.indices.create(index=self.index_name, body=CUSTOMS_DATA_MAPPING)
             logger.info(f"创建数据索引: {self.index_name}")
-        else:
-            # 检查是否需要更新映射
-            self._update_mapping_if_needed()
-            logger.info(f"数据索引已存在: {self.index_name}")
-
-    def _update_mapping_if_needed(self):
-        """更新索引映射（如果需要）"""
-        try:
-            # 获取当前映射
-            current_mapping = self.es_client.indices.get_mapping(index=self.index_name)
-            properties = current_mapping[self.index_name]['mappings']['properties']
-            
-            # 检查是否缺少"数据获取网站"字段
-            if '数据获取网站' not in properties:
-                logger.info("添加'数据获取网站'字段到索引映射")
-                self.es_client.indices.put_mapping(
-                    index=self.index_name,
-                    body={
-                        "properties": {
-                            "数据获取网站": {"type": "keyword"}
-                        }
-                    }
-                )
-                logger.info("成功添加'数据获取网站'字段")
-        except Exception as e:
-            logger.error(f"更新索引映射失败: {str(e)}")
 
     def _clean_customs_code(self, code: Any) -> str:
         """清理海关编码格式"""
@@ -422,10 +207,7 @@ class DataService:
         sort_by = query_params.get('sort_by', '日期')
         sort_order = query_params.get('sort_order', 'desc')
         
-        # 定义需要使用keyword子字段进行排序的text类型字段
-        text_fields_with_keyword = ['编码产品描述', '详细产品名称']
-        
-        if sort_by in text_fields_with_keyword:
+        if sort_by in TEXT_FIELDS_WITH_KEYWORD:
             sort_field = f"{sort_by}.keyword"
         else:
             sort_field = sort_by
@@ -434,11 +216,7 @@ class DataService:
 
     def _get_default_source_fields(self) -> List[str]:
         """获取默认的返回字段"""
-        return [
-            "海关编码", "编码产品描述", "日期", "进口商", "进口商所在国家", 
-            "出口商", "出口商所在国家", "数量单位", "数量", "公吨", 
-            "金额美元", "详细产品名称", "提单号", "数据来源", "关单号"
-        ]
+        return DEFAULT_SOURCE_FIELDS
 
     def _format_search_results(self, hits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """格式化搜索结果"""
